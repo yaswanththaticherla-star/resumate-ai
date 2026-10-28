@@ -7,38 +7,22 @@ import {
   JobApplication, 
   User, 
   TemplateInfo,
-  AISuggestion,
-  AuthResponse
+  AISuggestion
 } from '../types';
 
 const API_BASE = '/api';
-const TOKEN_KEY = 'resumate_token';
 
 export function getStoredToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return null;
 }
 
-export function setStoredToken(token: string | null) {
+export function setStoredToken(_token: string | null) {
   try {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    localStorage.removeItem('resumate_token');
   } catch {}
 }
 
 function getAuthHeaders(): HeadersInit {
-  const token = getStoredToken();
-  if (token) {
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  }
   return {};
 }
 
@@ -78,7 +62,6 @@ async function request<T>(
       signal: controller.signal,
       headers: {
         ...DEFAULT_HEADERS,
-        ...getAuthHeaders(),
         ...(options.headers || {}),
       },
     });
@@ -88,10 +71,6 @@ async function request<T>(
     if (response.ok) {
       backendReachable = true;
       return await response.json();
-    }
-
-    if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/register') {
-      setStoredToken(null);
     }
 
     // Parse server error detail
@@ -132,20 +111,7 @@ async function request<T>(
 }
 
 export const api = {
-  // Authentication
-  register: (data: { email: string; full_name: string; password: string }) =>
-    request<AuthResponse>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  login: (data: { email: string; password: string }) =>
-    request<AuthResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  // User Profile
+  // Workspace User Profile
   getMe: () =>
     request<User>('/auth/me'),
 
@@ -161,22 +127,9 @@ export const api = {
       }
     ),
 
-  changePassword: (data: { old_password: string; new_password: string }) =>
-    request<{ message: string }>(
-      '/auth/password',
-      {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }
-    ),
-
-  deleteAccount: () =>
-    request<{ message: string }>(
-      '/auth/account',
-      {
-        method: 'DELETE',
-      }
-    ),
+  // Backwards compatibility stubs
+  register: async (_data: any) => ({ access_token: '', token_type: 'bearer', user: {} as User }),
+  login: async (_data: any) => ({ access_token: '', token_type: 'bearer', user: {} as User }),
 
   // Resumes
   listResumes: () =>

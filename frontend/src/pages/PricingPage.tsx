@@ -71,10 +71,10 @@ export const PricingPage: React.FC = () => {
             </div>
 
             <Link
-              to="/register"
+              to="/dashboard"
               className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-center text-xs font-semibold shadow-sm transition-all"
             >
-              Get Started Free
+              Go to Workspace Dashboard
             </Link>
           </div>
 
@@ -123,7 +123,7 @@ export const PricingPage: React.FC = () => {
             </div>
 
             <Link
-              to="/register"
+              to="/dashboard"
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-center text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all hover:scale-[1.02]"
             >
               Start Building Now

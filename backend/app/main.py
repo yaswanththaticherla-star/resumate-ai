@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base, SessionLocal
 from app.config import settings
-from app.auth import get_password_hash
 from app import models
 from app.routes import (
     auth,
@@ -20,7 +19,7 @@ from app.routes import (
 Base.metadata.create_all(bind=engine)
 
 def seed_demo_user():
-    """Ensure standard demo account exists for immediate testing."""
+    """Ensure standard workspace profile exists for immediate testing."""
     db = SessionLocal()
     try:
         demo_email = "alex.morgan@resumate.ai"
@@ -29,7 +28,7 @@ def seed_demo_user():
             demo_user = models.User(
                 email=demo_email,
                 full_name="Alex Morgan",
-                hashed_password=get_password_hash("Password123!"),
+                hashed_password="workspace_unauthenticated",
                 headline="Senior Full-Stack Software Engineer"
             )
             db.add(demo_user)

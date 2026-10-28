@@ -1,9 +1,9 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { User } from '../types';
-import { api, getStoredToken, setStoredToken } from '../services/api';
+import { api } from '../services/api';
 
 export interface AuthContextType {
-  user: User | null;
+  user: User;
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
@@ -13,72 +13,50 @@ export interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+const DEFAULT_WORKSPACE_USER: User = {
+  id: 2,
+  email: 'alex.morgan@example.com',
+  full_name: 'Alex Morgan',
+  headline: 'Senior Full Stack Engineer & Cloud Architect',
+  theme_preference: 'dark',
+  default_template: 'modern',
+  created_at: new Date().toISOString(),
+};
+
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => getStoredToken());
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User>(DEFAULT_WORKSPACE_USER);
+  const [isLoading] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
-    async function initAuth() {
-      const storedToken = getStoredToken();
-      if (!storedToken) {
-        if (isMounted) {
-          setUser(null);
-          setToken(null);
-          setIsLoading(false);
-        }
-        return;
-      }
-
+    async function loadWorkspaceProfile() {
       try {
         const profile = await api.getMe();
-        if (isMounted && profile) {
+        if (isMounted && profile && profile.id) {
           setUser(profile);
-          setToken(storedToken);
         }
       } catch {
-        // Token expired or invalid
-        if (isMounted) {
-          setStoredToken(null);
-          setToken(null);
-          setUser(null);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        // Fallback default workspace profile is already loaded
       }
     }
-
-    initAuth();
+    loadWorkspaceProfile();
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<User> => {
-    const res = await api.login({ email, password });
-    setStoredToken(res.access_token);
-    setToken(res.access_token);
-    setUser(res.user);
-    return res.user;
-  }, []);
+  const login = useCallback(async (_email: string, _password: string): Promise<User> => {
+    return user;
+  }, [user]);
 
-  const register = useCallback(async (email: string, fullName: string, password: string): Promise<User> => {
-    const res = await api.register({ email, full_name: fullName, password });
-    setStoredToken(res.access_token);
-    setToken(res.access_token);
-    setUser(res.user);
-    return res.user;
-  }, []);
+  const register = useCallback(async (_email: string, _fullName: string, _password: string): Promise<User> => {
+    return user;
+  }, [user]);
 
   const logout = useCallback(() => {
-    setStoredToken(null);
-    setToken(null);
-    setUser(null);
+    // No-op in unauthenticated workspace mode
   }, []);
 
   const updateUser = useCallback((updated: User) => {
@@ -96,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
-        token,
+        token: null,
         isLoading,
         login,
         register,
@@ -111,4 +89,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export { useAuth } from './useAuth';
-

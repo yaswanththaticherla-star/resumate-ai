@@ -4,39 +4,29 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.workspace import get_workspace_user
 from app.services.ats_engine import analyze_resume_ats
 
 router = APIRouter(prefix="/api/resumes", tags=["resumes"])
 
-def get_user_resume(db: Session, resume_id: int, current_user: models.User) -> Optional[models.Resume]:
-    if current_user.email == "alex.morgan@resumate.ai":
-        return db.query(models.Resume).filter(models.Resume.id == resume_id).first()
-    return db.query(models.Resume).filter(
-        models.Resume.id == resume_id,
-        models.Resume.user_id == current_user.id
-    ).first()
+def get_user_resume(db: Session, resume_id: int) -> Optional[models.Resume]:
+    return db.query(models.Resume).filter(models.Resume.id == resume_id).first()
 
 @router.get("", response_model=List[schemas.ResumeOut])
-def list_resumes(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    if current_user.email == "alex.morgan@resumate.ai":
-        return db.query(models.Resume).order_by(models.Resume.updated_at.desc()).all()
-    return db.query(models.Resume).filter(models.Resume.user_id == current_user.id).order_by(models.Resume.updated_at.desc()).all()
+def list_resumes(db: Session = Depends(get_db)):
+    return db.query(models.Resume).order_by(models.Resume.updated_at.desc()).all()
 
 @router.post("", response_model=schemas.ResumeOut)
 def create_resume(
     resume_in: schemas.ResumeCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
+    workspace_user = get_workspace_user(db)
     default_content = {
         "personal_info": {
-            "full_name": current_user.full_name,
-            "headline": current_user.headline or "Professional",
-            "email": current_user.email,
+            "full_name": workspace_user.full_name,
+            "headline": workspace_user.headline or "Professional",
+            "email": workspace_user.email,
             "phone": "",
             "location": "",
             "website": "",
@@ -63,7 +53,7 @@ def create_resume(
     ats_eval = analyze_resume_ats(content_data, resume_in.target_role or "")
 
     new_resume = models.Resume(
-        user_id=current_user.id,
+        user_id=workspace_user.id,
         title=resume_in.title,
         template_id=resume_in.template_id,
         theme_color=resume_in.theme_color,
@@ -92,24 +82,22 @@ def create_resume(
 @router.get("/{resume_id}", response_model=schemas.ResumeOut)
 def get_resume(
     resume_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found or access denied.")
+        raise HTTPException(status_code=404, detail="Resume not found.")
     return resume
 
 @router.put("/{resume_id}", response_model=schemas.ResumeOut)
 def update_resume(
     resume_id: int,
     resume_update: schemas.ResumeUpdate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found or access denied.")
+        raise HTTPException(status_code=404, detail="Resume not found.")
 
     if resume_update.title is not None:
         resume.title = resume_update.title
@@ -133,7 +121,7 @@ def update_resume(
         ats_eval = analyze_resume_ats(resume.content, resume.target_role or "")
         resume.ats_score = ats_eval.score
 
-        # Create autosave version milestone if fewer than 20 versions
+        # Create autosave version milestone if fewer than 25 versions
         version_count = db.query(models.ResumeVersion).filter(models.ResumeVersion.resume_id == resume.id).count()
         if version_count < 25:
             db.add(models.ResumeVersion(
@@ -149,12 +137,11 @@ def update_resume(
 @router.delete("/{resume_id}")
 def delete_resume(
     resume_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found or access denied.")
+        raise HTTPException(status_code=404, detail="Resume not found.")
 
     # Detach linked cover letters and applications so foreign keys remain valid
     db.query(models.CoverLetter).filter(models.CoverLetter.resume_id == resume.id).update({models.CoverLetter.resume_id: None})
@@ -167,16 +154,15 @@ def delete_resume(
 @router.post("/{resume_id}/duplicate", response_model=schemas.ResumeOut)
 def duplicate_resume(
     resume_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found or access denied.")
+        raise HTTPException(status_code=404, detail="Resume not found.")
 
     copy_title = f"{resume.title} (Copy)"
     new_resume = models.Resume(
-        user_id=current_user.id,
+        user_id=resume.user_id,
         title=copy_title,
         template_id=resume.template_id,
         theme_color=resume.theme_color,
@@ -203,10 +189,9 @@ def duplicate_resume(
 @router.post("/{resume_id}/share")
 def toggle_share(
     resume_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found.")
 
@@ -219,51 +204,50 @@ def toggle_share(
     db.commit()
     return {"is_public": resume.is_public, "share_token": resume.share_token}
 
-@router.get("/shared/{token}", response_model=schemas.ResumeOut)
-def get_shared_resume(token: str, db: Session = Depends(get_db)):
+@router.get("/share/{share_token}", response_model=schemas.ResumeOut)
+def get_public_resume(
+    share_token: str,
+    db: Session = Depends(get_db)
+):
     resume = db.query(models.Resume).filter(
-        models.Resume.share_token == token,
+        models.Resume.share_token == share_token,
         models.Resume.is_public == True
     ).first()
     if not resume:
-        raise HTTPException(status_code=404, detail="Shared resume not found or made private.")
+        raise HTTPException(status_code=404, detail="Shared resume not found or access revoked.")
     return resume
 
 @router.get("/{resume_id}/versions", response_model=List[schemas.ResumeVersionOut])
 def get_versions(
     resume_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found.")
+    return db.query(models.ResumeVersion).filter(models.ResumeVersion.resume_id == resume_id).order_by(models.ResumeVersion.created_at.desc()).all()
 
-    return db.query(models.ResumeVersion).filter(
-        models.ResumeVersion.resume_id == resume.id
-    ).order_by(models.ResumeVersion.created_at.desc()).limit(15).all()
-
-@router.post("/{resume_id}/restore/{version_id}", response_model=schemas.ResumeOut)
-def restore_version(
+@router.post("/{resume_id}/rollback/{version_id}", response_model=schemas.ResumeOut)
+def rollback_version(
     resume_id: int,
     version_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    resume = get_user_resume(db, resume_id, current_user)
+    resume = get_user_resume(db, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found.")
 
     version = db.query(models.ResumeVersion).filter(
         models.ResumeVersion.id == version_id,
-        models.ResumeVersion.resume_id == resume.id
+        models.ResumeVersion.resume_id == resume_id
     ).first()
     if not version:
-        raise HTTPException(status_code=404, detail="Version not found.")
+        raise HTTPException(status_code=404, detail="Version snapshot not found.")
 
     resume.content = version.content
     ats_eval = analyze_resume_ats(resume.content, resume.target_role or "")
     resume.ats_score = ats_eval.score
+
     db.commit()
     db.refresh(resume)
     return resume

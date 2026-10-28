@@ -14,68 +14,23 @@ import { CareerToolsPage } from './pages/CareerToolsPage';
 import { PricingPage } from './pages/PricingPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { PublicResumePage } from './pages/PublicResumePage';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
 import { AppLayout } from './components/layout/AppLayout';
-import { useAuth } from './context/useAuth';
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Loading ResuMate AI...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
 
 export const App: React.FC = () => {
-  const { user, isLoading } = useAuth();
-
   return (
     <Routes>
-      {/* Root redirect */}
-      <Route
-        path="/"
-        element={
-          isLoading ? (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : user ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
+      {/* Root immediately navigates to Dashboard */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/share/:token" element={<PublicResumePage />} />
 
-      {/* Authentication Pages */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {/* Obsolete auth routes redirect immediately to Dashboard */}
+      <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/register" element={<Navigate to="/dashboard" replace />} />
 
-      {/* Protected Application Workspace inside AppLayout */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }
-      >
+      {/* Main Workspace Application inside AppLayout (no authentication guards) */}
+      <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/my-resumes" element={<MyResumesPage />} />
         <Route path="/editor" element={<ResumeEditorPage />} />
@@ -95,7 +50,7 @@ export const App: React.FC = () => {
         <Route path="/profile" element={<SettingsPage />} />
       </Route>
 
-      {/* Catch-all redirect to Dashboard (which redirects to /login if unauthenticated) */}
+      {/* Catch-all redirect to Dashboard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

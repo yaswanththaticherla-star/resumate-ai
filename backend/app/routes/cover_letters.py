@@ -3,31 +3,28 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.workspace import get_workspace_user
 from app.services.ai_service import generate_cover_letter_content
 
 router = APIRouter(prefix="/api/cover-letters", tags=["cover-letters"])
 
 @router.get("", response_model=List[schemas.CoverLetterOut])
 def list_cover_letters(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    if current_user.email == "alex.morgan@resumate.ai":
-        return db.query(models.CoverLetter).order_by(models.CoverLetter.updated_at.desc()).all()
-    return db.query(models.CoverLetter).filter(models.CoverLetter.user_id == current_user.id).order_by(models.CoverLetter.updated_at.desc()).all()
+    return db.query(models.CoverLetter).order_by(models.CoverLetter.updated_at.desc()).all()
 
 @router.post("", response_model=schemas.CoverLetterOut)
 def create_cover_letter(
     letter_in: schemas.CoverLetterCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
+    workspace_user = get_workspace_user(db)
     content_text = letter_in.content
     if not content_text:
         # Generate initial draft
-        user_name = current_user.full_name
-        user_email = current_user.email
+        user_name = workspace_user.full_name
+        user_email = workspace_user.email
         user_phone = ""
         key_skills = []
 
@@ -53,7 +50,7 @@ def create_cover_letter(
         )
 
     letter = models.CoverLetter(
-        user_id=current_user.id,
+        user_id=workspace_user.id,
         resume_id=letter_in.resume_id,
         title=letter_in.title or f"Cover Letter - {letter_in.company_name}",
         company_name=letter_in.company_name,
@@ -73,11 +70,10 @@ def create_cover_letter(
 @router.get("/{letter_id}", response_model=schemas.CoverLetterOut)
 def get_cover_letter(
     letter_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     letter = db.query(models.CoverLetter).filter(models.CoverLetter.id == letter_id).first()
-    if not letter or (letter.user_id != current_user.id and current_user.email != "alex.morgan@resumate.ai"):
+    if not letter:
         raise HTTPException(status_code=404, detail="Cover letter not found.")
     return letter
 
@@ -85,11 +81,10 @@ def get_cover_letter(
 def update_cover_letter(
     letter_id: int,
     letter_update: schemas.CoverLetterUpdate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     letter = db.query(models.CoverLetter).filter(models.CoverLetter.id == letter_id).first()
-    if not letter or (letter.user_id != current_user.id and current_user.email != "alex.morgan@resumate.ai"):
+    if not letter:
         raise HTTPException(status_code=404, detail="Cover letter not found.")
 
     if letter_update.title is not None:
@@ -118,11 +113,10 @@ def update_cover_letter(
 @router.delete("/{letter_id}")
 def delete_cover_letter(
     letter_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     letter = db.query(models.CoverLetter).filter(models.CoverLetter.id == letter_id).first()
-    if not letter or (letter.user_id != current_user.id and current_user.email != "alex.morgan@resumate.ai"):
+    if not letter:
         raise HTTPException(status_code=404, detail="Cover letter not found.")
 
     db.delete(letter)
@@ -132,15 +126,15 @@ def delete_cover_letter(
 @router.post("/{letter_id}/duplicate", response_model=schemas.CoverLetterOut)
 def duplicate_cover_letter(
     letter_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     letter = db.query(models.CoverLetter).filter(models.CoverLetter.id == letter_id).first()
-    if not letter or (letter.user_id != current_user.id and current_user.email != "alex.morgan@resumate.ai"):
+    if not letter:
         raise HTTPException(status_code=404, detail="Cover letter not found.")
 
+    workspace_user = get_workspace_user(db)
     new_letter = models.CoverLetter(
-        user_id=current_user.id,
+        user_id=workspace_user.id,
         resume_id=letter.resume_id,
         title=f"{letter.title} (Copy)",
         company_name=letter.company_name,

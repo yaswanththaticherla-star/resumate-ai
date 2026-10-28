@@ -22,112 +22,58 @@ def test_health():
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 
-def test_unauthenticated_requests():
-    # Unauthenticated request to /api/auth/me must return 401
+def test_unauthenticated_workspace_profile():
+    # In unauthenticated mode, /api/auth/me succeeds with 200 and returns default workspace user
     resp = client.get("/api/auth/me")
-    assert resp.status_code == 401
-    assert "detail" in resp.json()
-
-def test_invalid_and_expired_tokens():
-    # Invalid token format / fake token
-    resp = client.get("/api/auth/me", headers={"Authorization": "Bearer invalid_fake_token_123"})
-    assert resp.status_code == 401
-
-    # Malformed authorization header
-    resp2 = client.get("/api/auth/me", headers={"Authorization": "NotBearer 12345"})
-    assert resp2.status_code == 401
-
-def test_duplicate_registration_and_wrong_password():
-    unique_email = f"user_{datetime.datetime.now().timestamp()}@resumate.ai"
-    # 1. Register valid user
-    r1 = client.post("/api/auth/register", json={
-        "email": unique_email,
-        "full_name": "Unique User",
-        "password": "ValidPassword123!"
-    })
-    assert r1.status_code in (200, 201)
-    assert "access_token" in r1.json()
-    assert r1.json()["user"]["email"] == unique_email
-
-    # 2. Duplicate registration with same email must return 409 or 400
-    r2 = client.post("/api/auth/register", json={
-        "email": unique_email,
-        "full_name": "Another User",
-        "password": "ValidPassword123!"
-    })
-    assert r2.status_code in (400, 409)
-    assert "already exists" in r2.json()["detail"].lower()
-
-    # 3. Login with wrong password must return 401
-    r3 = client.post("/api/auth/login", json={
-        "email": unique_email,
-        "password": "WrongPassword999!"
-    })
-    assert r3.status_code == 401
-    assert "incorrect" in r3.json()["detail"].lower()
-
-def test_demo_user_authentication():
-    # Demo user seeded on startup must log in cleanly with real JWT
-    resp = client.post("/api/auth/login", json={
-        "email": "alex.morgan@resumate.ai",
-        "password": "Password123!"
-    })
     assert resp.status_code == 200
     data = resp.json()
-    assert "access_token" in data
-    assert data["user"]["full_name"] == "Alex Morgan"
+    assert data["email"] == "alex.morgan@resumate.ai"
+    assert data["full_name"] == "Alex Morgan"
 
-    # Use token on /api/auth/me
-    token = data["access_token"]
-    me_resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
-    assert me_resp.status_code == 200
-    assert me_resp.json()["email"] == "alex.morgan@resumate.ai"
+def test_unauthenticated_endpoints_no_headers():
+    # Application endpoints do not require Authorization headers and return 200
+    resp = client.get("/api/resumes")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
 
-    # Profile update with token
+    resp2 = client.get("/api/cover-letters")
+    assert resp2.status_code == 200
+    assert isinstance(resp2.json(), list)
+
+    resp3 = client.get("/api/career/applications")
+    assert resp3.status_code == 200
+    assert isinstance(resp3.json(), list)
+
+def test_workspace_profile_update():
+    # Update profile in workspace without tokens
     up_resp = client.put("/api/auth/profile", json={
         "headline": "Lead Full-Stack Architect",
         "theme_preference": "dark"
-    }, headers={"Authorization": f"Bearer {token}"})
+    })
     assert up_resp.status_code == 200
     assert up_resp.json()["headline"] == "Lead Full-Stack Architect"
 
 def test_templates_and_account_data():
-    # Templates catalog is public
+    # Templates catalog and account data export work without login
     tpl = client.get("/api/templates")
     assert tpl.status_code == 200
     assert len(tpl.json()) >= 6
 
-    # Account data export with demo user token
-    login_resp = client.post("/api/auth/login", json={
-        "email": "alex.morgan@resumate.ai",
-        "password": "Password123!"
-    })
-    token = login_resp.json()["access_token"]
-    acc = client.get("/api/export/account-data", headers={"Authorization": f"Bearer {token}"})
+    acc = client.get("/api/export/account-data")
     assert acc.status_code == 200
     assert "user" in acc.json()
     assert "resumes" in acc.json()
 
-def test_new_user_empty_state_and_full_lifecycle():
+def test_unauthenticated_full_lifecycle():
     ts = datetime.datetime.now().timestamp()
     test_email = f"lifecycle_{ts}@resumate.ai"
 
-    # 1. Register new user
-    reg_resp = client.post("/api/auth/register", json={
-        "email": test_email,
-        "full_name": "Jane Developer",
-        "password": "StrongPassword123!"
-    })
-    assert reg_resp.status_code in (200, 201)
-    token = reg_resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 2. Authentic empty state: newly registered user must start with 0 resumes
-    list_resp = client.get("/api/resumes", headers=headers)
+    # 1. Resumes list without auth headers
+    list_resp = client.get("/api/resumes")
     assert list_resp.status_code == 200
-    assert list_resp.json() == []
+    assert isinstance(list_resp.json(), list)
 
-    # 3. Create resume with auth headers
+    # 2. Create resume without auth headers
     create_resp = client.post("/api/resumes", json={
         "title": "Jane Senior Engineer",
         "template_id": "ats_classic",
@@ -173,78 +119,78 @@ def test_new_user_empty_state_and_full_lifecycle():
                 }
             ]
         }
-    }, headers=headers)
+    })
     assert create_resp.status_code == 200
     created_resume = create_resp.json()
     resume_id = created_resume["id"]
     assert created_resume["title"] == "Jane Senior Engineer"
     assert created_resume["ats_score"] > 70
 
-    # 4. Read resume by id with auth headers
-    get_resp = client.get(f"/api/resumes/{resume_id}", headers=headers)
+    # 3. Read resume by id without auth headers
+    get_resp = client.get(f"/api/resumes/{resume_id}")
     assert get_resp.status_code == 200
     assert get_resp.json()["id"] == resume_id
 
-    # 5. Update resume with auth headers
+    # 4. Update resume without auth headers
     update_resp = client.put(f"/api/resumes/{resume_id}", json={
         "title": "Jane Developer - Principal Resume",
         "target_role": "Principal Systems Architect"
-    }, headers=headers)
+    })
     assert update_resp.status_code == 200
     assert update_resp.json()["title"] == "Jane Developer - Principal Resume"
 
-    # 6. Check ATS analyzer with auth headers
-    ats_resp = client.get(f"/api/ats/analyze/{resume_id}", headers=headers)
+    # 5. Check ATS analyzer without auth headers
+    ats_resp = client.get(f"/api/ats/analyze/{resume_id}")
     assert ats_resp.status_code == 200
     ats_data = ats_resp.json()
     assert ats_data["score"] >= 70
     assert ats_data["passed_checks"] > 0
     assert "summary_feedback" in ats_data
 
-    # 7. Job Matcher with auth headers
+    # 6. Job Matcher without auth headers
     match_resp = client.post("/api/job-match/analyze", json={
         "resume_id": resume_id,
         "job_title": "Principal Backend Architect",
         "company": "HyperScale Cloud",
         "job_description": "We are seeking a Principal Backend Architect with deep expertise in Python, FastAPI, PostgreSQL, Redis, and distributed systems."
-    }, headers=headers)
+    })
     assert match_resp.status_code == 200
     match_res = match_resp.json()
     assert match_res["match_score"] >= 60
     assert "Python" in match_res["matching_skills"] or "Fastapi" in match_res["matching_skills"]
 
-    # 8. Check job match history persistence with auth headers
-    hist_resp = client.get("/api/job-match/history", headers=headers)
+    # 7. Check job match history persistence without auth headers
+    hist_resp = client.get("/api/job-match/history")
     assert hist_resp.status_code == 200
     assert len(hist_resp.json()) >= 1
     match_id = hist_resp.json()[0]["id"]
 
-    # Delete match history item
-    del_hist = client.delete(f"/api/job-match/history/{match_id}", headers=headers)
+    # Delete match history item without auth headers
+    del_hist = client.delete(f"/api/job-match/history/{match_id}")
     assert del_hist.status_code == 200
 
-    # 9. Cover Letter builder with auth headers
+    # 8. Cover Letter builder without auth headers
     cl_resp = client.post("/api/cover-letters", json={
         "title": "Cover Letter - HyperScale Cloud",
         "company_name": "HyperScale Cloud",
         "job_title": "Principal Backend Architect",
         "resume_id": resume_id
-    }, headers=headers)
+    })
     assert cl_resp.status_code == 200
     cl_data = cl_resp.json()
     assert "HyperScale Cloud" in cl_data["content"]
     cl_id = cl_data["id"]
 
-    # List cover letters with auth headers
-    cl_list = client.get("/api/cover-letters", headers=headers)
+    # List cover letters without auth headers
+    cl_list = client.get("/api/cover-letters")
     assert cl_list.status_code == 200
     assert len(cl_list.json()) >= 1
 
-    # Delete cover letter with auth headers
-    del_cl = client.delete(f"/api/cover-letters/{cl_id}", headers=headers)
+    # Delete cover letter without auth headers
+    del_cl = client.delete(f"/api/cover-letters/{cl_id}")
     assert del_cl.status_code == 200
 
-    # 10. Job Application Tracker with auth headers
+    # 9. Job Application Tracker without auth headers
     app_resp = client.post("/api/career/applications", json={
         "company": "HyperScale Cloud",
         "job_title": "Principal Backend Architect",
@@ -253,27 +199,27 @@ def test_new_user_empty_state_and_full_lifecycle():
         "salary_range": "$220,000 - $260,000",
         "resume_id": resume_id,
         "notes": "Applied via referral"
-    }, headers=headers)
+    })
     assert app_resp.status_code == 200
     app_id = app_resp.json()["id"]
 
-    # Update application status with auth headers
+    # Update application status without auth headers
     up_app = client.put(f"/api/career/applications/{app_id}", json={
         "status": "interviewing"
-    }, headers=headers)
+    })
     assert up_app.status_code == 200
     assert up_app.json()["status"] == "interviewing"
 
-    # List applications with auth headers
-    app_list = client.get("/api/career/applications", headers=headers)
+    # List applications without auth headers
+    app_list = client.get("/api/career/applications")
     assert app_list.status_code == 200
     assert len(app_list.json()) >= 1
 
-    # Delete application with auth headers
-    del_app = client.delete(f"/api/career/applications/{app_id}", headers=headers)
+    # Delete application without auth headers
+    del_app = client.delete(f"/api/career/applications/{app_id}")
     assert del_app.status_code == 200
 
-    # 11. AI Status & Services
+    # 10. AI Status & Services
     ai_status = client.get("/api/ai/status")
     assert ai_status.status_code == 200
     assert ai_status.json()["status"] == "ready"
@@ -313,32 +259,24 @@ def test_new_user_empty_state_and_full_lifecycle():
     assert "recieve" not in ai_grammar.json()["improved"].lower()
     assert "goverment" not in ai_grammar.json()["improved"].lower()
 
-    # 12. DOCX Export with auth headers
-    docx_resp = client.get(f"/api/export/docx/{resume_id}", headers=headers)
+    # 11. DOCX Export without auth headers
+    docx_resp = client.get(f"/api/export/docx/{resume_id}")
     assert docx_resp.status_code == 200
     assert docx_resp.headers["content-type"] == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     assert len(docx_resp.content) > 1000
 
-    # 13. Templates Catalog
+    # 12. Templates Catalog
     tpl_resp = client.get("/api/templates")
     assert tpl_resp.status_code == 200
     assert len(tpl_resp.json()) >= 6
 
-    # 14. Delete resume with auth headers
-    del_res = client.delete(f"/api/resumes/{resume_id}", headers=headers)
+    # 13. Delete resume without auth headers
+    del_res = client.delete(f"/api/resumes/{resume_id}")
     assert del_res.status_code == 200
 
 def test_resume_cascades_and_foreign_keys():
-    # Login with demo user
-    login_resp = client.post("/api/auth/login", json={
-        "email": "alex.morgan@resumate.ai",
-        "password": "Password123!"
-    })
-    token = login_resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # Create resume with auth headers
-    r = client.post("/api/resumes", json={"title": "Cascade Resume"}, headers=headers)
+    # Create resume without auth headers
+    r = client.post("/api/resumes", json={"title": "Cascade Resume"})
     assert r.status_code == 200
     res_id = r.json()["id"]
 
@@ -347,14 +285,14 @@ def test_resume_cascades_and_foreign_keys():
         "resume_id": res_id,
         "job_title": "Backend Dev",
         "job_description": "Python, SQL, APIs required."
-    }, headers=headers)
+    })
 
     # Create cover letter attached to resume
     cl = client.post("/api/cover-letters", json={
         "resume_id": res_id,
         "company_name": "Test Co",
         "job_title": "Backend Dev"
-    }, headers=headers)
+    })
     assert cl.status_code == 200
     cl_id = cl.json()["id"]
 
@@ -363,21 +301,21 @@ def test_resume_cascades_and_foreign_keys():
         "resume_id": res_id,
         "company": "Test Co",
         "job_title": "Backend Dev"
-    }, headers=headers)
+    })
     assert ja.status_code == 200
     ja_id = ja.json()["id"]
 
     # Delete resume directly while all children are active
-    del_res = client.delete(f"/api/resumes/{res_id}", headers=headers)
+    del_res = client.delete(f"/api/resumes/{res_id}")
     assert del_res.status_code == 200
 
     # Verify cover letter still exists and resume_id is nullified
-    cl_check = client.get(f"/api/cover-letters/{cl_id}", headers=headers)
+    cl_check = client.get(f"/api/cover-letters/{cl_id}")
     assert cl_check.status_code == 200
     assert cl_check.json()["resume_id"] is None
 
     # Verify job application still exists and resume_id is nullified
-    ja_check = client.get("/api/career/applications", headers=headers)
+    ja_check = client.get("/api/career/applications")
     assert ja_check.status_code == 200
     found_ja = next(a for a in ja_check.json() if a["id"] == ja_id)
     assert found_ja["resume_id"] is None
@@ -404,16 +342,11 @@ def test_ai_services_and_security():
     assert "headline" in li_data and len(li_data["headline"]) > 10
     assert "about" in li_data and len(li_data["about"]) > 30
 
-    # 3. Dynamic interview questions generation with auth token
-    login_resp = client.post("/api/auth/login", json={
-        "email": "alex.morgan@resumate.ai",
-        "password": "Password123!"
-    })
-    token = login_resp.json()["access_token"]
+    # 3. Dynamic interview questions generation without any authentication
     iq_resp = client.post("/api/career/interview-questions", json={
         "target_role": "Full-Stack Engineer",
         "company_name": "Google",
-    }, headers={"Authorization": f"Bearer {token}"})
+    })
     assert iq_resp.status_code == 200
     iq_data = iq_resp.json()
     assert len(iq_data["questions"]) == 5

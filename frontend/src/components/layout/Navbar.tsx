@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Sun, Moon, Menu, X, FileText, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+import { Sparkles, Sun, Moon, Menu, X, FileText, LayoutDashboard, Settings } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 
 export const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -40,6 +40,9 @@ export const Navbar: React.FC = () => {
           <Link to="/templates" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
             Templates
           </Link>
+          <Link to="/career-tools" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            Career Tools
+          </Link>
           <Link to="/settings" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
             Settings
           </Link>
@@ -57,80 +60,61 @@ export const Navbar: React.FC = () => {
             {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5" />}
           </button>
 
-          {/* User profile dropdown or Sign In */}
-          {user ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-              >
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
-                  {user.full_name ? user.full_name[0].toUpperCase() : 'U'}
-                </div>
-                <span className="hidden sm:inline max-w-[120px] truncate">{user.full_name ? user.full_name.split(' ')[0] : 'Account'}</span>
-              </button>
+          {/* Workspace profile button and dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                {user?.full_name ? user.full_name[0].toUpperCase() : 'A'}
+              </div>
+              <span className="hidden sm:inline max-w-[120px] truncate">{user?.full_name ? user.full_name.split(' ')[0] : 'Alex'}</span>
+            </button>
 
-              {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 origin-top-right rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50">
-                  <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Signed in as</p>
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{user.email}</p>
-                  </div>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    <LayoutDashboard className="h-4 w-4 text-slate-400" />
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/templates"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    <FileText className="h-4 w-4 text-slate-400" />
-                    Template Gallery
-                  </Link>
-                  <Link
-                    to="/settings"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    <Settings className="h-4 w-4 text-slate-400" />
-                    Settings
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUserDropdownOpen(false);
-                      logout();
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 text-left border-t border-slate-100 dark:border-slate-800 mt-1 cursor-pointer"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </button>
+            {userDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-52 origin-top-right rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50">
+                <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Workspace User</p>
+                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{user?.full_name || 'Alex Morgan'}</p>
+                  <p className="truncate text-[11px] text-slate-400">{user?.email || 'alex.morgan@example.com'}</p>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                to="/login"
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all"
-              >
-                Get Started
-              </Link>
-            </div>
-          )}
+                <Link
+                  to="/dashboard"
+                  onClick={() => setUserDropdownOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <LayoutDashboard className="h-4 w-4 text-slate-400" />
+                  Dashboard
+                </Link>
+                <Link
+                  to="/my-resumes"
+                  onClick={() => setUserDropdownOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <FileText className="h-4 w-4 text-slate-400" />
+                  My Resumes
+                </Link>
+                <Link
+                  to="/templates"
+                  onClick={() => setUserDropdownOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <FileText className="h-4 w-4 text-slate-400" />
+                  Template Gallery
+                </Link>
+                <Link
+                  to="/settings"
+                  onClick={() => setUserDropdownOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <Settings className="h-4 w-4 text-slate-400" />
+                  Workspace Settings
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* Mobile hamburger menu toggle */}
           <button
@@ -155,6 +139,9 @@ export const Navbar: React.FC = () => {
             </Link>
             <Link to="/templates" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
               Templates
+            </Link>
+            <Link to="/career-tools" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              Career Tools
             </Link>
             <Link to="/settings" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
               Settings

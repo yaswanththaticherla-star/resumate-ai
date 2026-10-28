@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.workspace import get_workspace_user
 from app.services.matcher_engine import analyze_job_match
 
 router = APIRouter(prefix="/api/job-match", tags=["job-match"])
@@ -11,24 +11,18 @@ router = APIRouter(prefix="/api/job-match", tags=["job-match"])
 @router.post("/analyze", response_model=schemas.JobMatchResult)
 def match_job(
     req: schemas.JobMatchRequest,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    if current_user.email == "alex.morgan@resumate.ai":
-        resume = db.query(models.Resume).filter(models.Resume.id == req.resume_id).first()
-    else:
-        resume = db.query(models.Resume).filter(
-            models.Resume.id == req.resume_id,
-            models.Resume.user_id == current_user.id
-        ).first()
+    resume = db.query(models.Resume).filter(models.Resume.id == req.resume_id).first()
     if not resume:
         raise HTTPException(status_code=404, detail="Selected resume not found.")
 
     res = analyze_job_match(resume.content, req.job_title, req.job_description)
+    workspace_user = get_workspace_user(db)
 
     # Persist analysis history
     analysis = models.JobMatchAnalysis(
-        user_id=current_user.id,
+        user_id=workspace_user.id,
         resume_id=resume.id,
         job_title=req.job_title,
         company=req.company or "",
@@ -47,15 +41,9 @@ def match_job(
 
 @router.get("/history", response_model=List[dict])
 def get_match_history(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    if current_user.email == "alex.morgan@resumate.ai":
-        matches = db.query(models.JobMatchAnalysis).order_by(models.JobMatchAnalysis.created_at.desc()).limit(20).all()
-    else:
-        matches = db.query(models.JobMatchAnalysis).filter(
-            models.JobMatchAnalysis.user_id == current_user.id
-        ).order_by(models.JobMatchAnalysis.created_at.desc()).limit(20).all()
+    matches = db.query(models.JobMatchAnalysis).order_by(models.JobMatchAnalysis.created_at.desc()).limit(20).all()
 
     return [
         {
@@ -74,16 +62,9 @@ def get_match_history(
 @router.delete("/history/{match_id}")
 def delete_history_item(
     match_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    if current_user.email == "alex.morgan@resumate.ai":
-        item = db.query(models.JobMatchAnalysis).filter(models.JobMatchAnalysis.id == match_id).first()
-    else:
-        item = db.query(models.JobMatchAnalysis).filter(
-            models.JobMatchAnalysis.id == match_id,
-            models.JobMatchAnalysis.user_id == current_user.id
-        ).first()
+    item = db.query(models.JobMatchAnalysis).filter(models.JobMatchAnalysis.id == match_id).first()
     if item:
         db.delete(item)
         db.commit()

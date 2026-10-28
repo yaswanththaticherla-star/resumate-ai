@@ -3,28 +3,25 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.workspace import get_workspace_user
 from app.services.ai_service import generate_interview_questions_content
 
 router = APIRouter(prefix="/api/career", tags=["career"])
 
 @router.get("/applications", response_model=List[schemas.JobApplicationOut])
 def list_job_applications(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    if current_user.email == "alex.morgan@resumate.ai":
-        return db.query(models.JobApplication).order_by(models.JobApplication.updated_at.desc()).all()
-    return db.query(models.JobApplication).filter(models.JobApplication.user_id == current_user.id).order_by(models.JobApplication.updated_at.desc()).all()
+    return db.query(models.JobApplication).order_by(models.JobApplication.updated_at.desc()).all()
 
 @router.post("/applications", response_model=schemas.JobApplicationOut)
 def create_job_application(
     app_in: schemas.JobApplicationCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
+    workspace_user = get_workspace_user(db)
     job_app = models.JobApplication(
-        user_id=current_user.id,
+        user_id=workspace_user.id,
         resume_id=app_in.resume_id,
         company=app_in.company,
         job_title=app_in.job_title,
@@ -44,11 +41,10 @@ def create_job_application(
 def update_job_application(
     app_id: int,
     app_update: schemas.JobApplicationUpdate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     job_app = db.query(models.JobApplication).filter(models.JobApplication.id == app_id).first()
-    if not job_app or (job_app.user_id != current_user.id and current_user.email != "alex.morgan@resumate.ai"):
+    if not job_app:
         raise HTTPException(status_code=404, detail="Application record not found.")
 
     if app_update.company is not None:
@@ -77,11 +73,10 @@ def update_job_application(
 @router.delete("/applications/{app_id}")
 def delete_job_application(
     app_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     job_app = db.query(models.JobApplication).filter(models.JobApplication.id == app_id).first()
-    if not job_app or (job_app.user_id != current_user.id and current_user.email != "alex.morgan@resumate.ai"):
+    if not job_app:
         raise HTTPException(status_code=404, detail="Application record not found.")
 
     db.delete(job_app)
@@ -91,8 +86,7 @@ def delete_job_application(
 @router.post("/interview-questions")
 def generate_interview_questions(
     data: Dict[str, Any],
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     resume_id = data.get("resume_id")
     target_role = data.get("target_role", "Software Engineer")
@@ -120,7 +114,6 @@ def generate_interview_questions(
         "company": company_name,
         "questions": questions
     }
-
 
 @router.get("/internship-checklist")
 def get_internship_checklist():
@@ -151,3 +144,4 @@ def get_internship_checklist():
             ]
         }
     ]
+

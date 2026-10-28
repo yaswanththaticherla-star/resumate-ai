@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -14,8 +14,7 @@ import {
   ChevronRight,
   Home,
   Files,
-  KanbanSquare,
-  LogOut
+  KanbanSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 
@@ -25,8 +24,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate }) => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -145,14 +143,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate })
           >
             <Settings className="h-4 w-4" />
           </Link>
-          <button
-            type="button"
-            onClick={logout}
-            title="Sign Out"
-            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors flex-shrink-0 ml-1 cursor-pointer"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </aside>

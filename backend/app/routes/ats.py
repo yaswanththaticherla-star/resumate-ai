@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
 from app.services.ats_engine import analyze_resume_ats
 
 router = APIRouter(prefix="/api/ats", tags=["ats"])
@@ -10,13 +9,9 @@ router = APIRouter(prefix="/api/ats", tags=["ats"])
 @router.get("/analyze/{resume_id}", response_model=schemas.ATSResult)
 def analyze_by_id(
     resume_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    if current_user.email == "alex.morgan@resumate.ai":
-        resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
-    else:
-        resume = db.query(models.Resume).filter(models.Resume.id == resume_id, models.Resume.user_id == current_user.id).first()
+    resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found.")
 
@@ -33,3 +28,4 @@ def analyze_raw(
     target_role: str = ""
 ):
     return analyze_resume_ats(content, target_role)
+
