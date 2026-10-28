@@ -24,8 +24,7 @@ def analyze_by_id(
 
 @router.post("/analyze-raw", response_model=schemas.ATSResult)
 def analyze_raw(
-    content: dict,
-    target_role: str = ""
+    req: schemas.ATSRawRequest
 ):
-    return analyze_resume_ats(content, target_role)
+    return analyze_resume_ats(req.content, req.target_role or "")
 

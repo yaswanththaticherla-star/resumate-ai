@@ -210,6 +210,10 @@ class ATSResult(BaseModel):
     section_scores: Dict[str, int]
     summary_feedback: str
 
+class ATSRawRequest(BaseModel):
+    content: Dict[str, Any]
+    target_role: Optional[str] = ""
+
 # Job Match Schemas
 class JobMatchRequest(BaseModel):
     resume_id: int
