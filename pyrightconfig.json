@@ -1,0 +1,12 @@
+{
+  "venvPath": "backend",
+  "venv": "venv",
+  "include": [
+    "backend/app"
+  ],
+  "exclude": [
+    "backend/venv",
+    "**/__pycache__"
+  ]
+}
+

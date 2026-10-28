@@ -1,0 +1,44 @@
+# Environment variables and secrets (NEVER COMMIT)
+.env
+*.env
+backend/.env
+frontend/.env
+*.env.local
+*.env.*.local
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+env/
+venv/
+ENV/
+build/
+dist/
+.pytest_cache/
+
+# Node / Frontend artifacts
+frontend/node_modules/
+node_modules/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database & local data
+*.db
+*.sqlite
+*.sqlite3
+resumate.db
+
+# IDE & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
