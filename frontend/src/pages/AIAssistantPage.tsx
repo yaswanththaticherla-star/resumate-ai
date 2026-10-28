@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Resume, AISuggestion } from '../types';
+import { BackButton } from '../components/common/BackButton';
 
 export const AIAssistantPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'summary' | 'bullets' | 'skills' | 'grammar'>('summary');
@@ -268,9 +269,12 @@ export const AIAssistantPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold uppercase tracking-wider mb-2">
-            <Bot className="w-3.5 h-3.5" />
-            <span>AI Resume Copilot</span>
+          <div className="flex items-center gap-2 mb-2">
+            <BackButton to="/dashboard" label="Back to Dashboard" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold uppercase tracking-wider">
+              <Bot className="w-3.5 h-3.5" />
+              <span>AI Resume Copilot</span>
+            </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             AI Career Assistant

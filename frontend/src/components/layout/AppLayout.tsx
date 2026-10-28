@@ -5,6 +5,7 @@ import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/ThemeContext';
 import { Sun, Moon, Bell, Menu, X, Plus, Sparkles, ChevronRight } from 'lucide-react';
 import { api } from '../../services/api';
+import { BackButton } from '../common/BackButton';
 
 export const AppLayout: React.FC = () => {
   const { user } = useAuth();
@@ -39,6 +40,7 @@ export const AppLayout: React.FC = () => {
   const getPageTitle = () => {
     const p = location.pathname;
     if (p.startsWith('/dashboard')) return 'Dashboard Overview';
+    if (p.startsWith('/my-resumes')) return 'My Resumes';
     if (p.startsWith('/editor')) return 'Resume Builder & Editor';
     if (p.startsWith('/preview') || p.startsWith('/export')) return 'Resume Preview & Export';
     if (p.startsWith('/templates')) return 'Template Gallery';
@@ -95,6 +97,12 @@ export const AppLayout: React.FC = () => {
             >
               <Menu className="h-5 w-5" />
             </button>
+            {location.pathname !== '/dashboard' && (
+              <BackButton 
+                to={location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview') || location.pathname.startsWith('/export') ? '/my-resumes' : '/dashboard'} 
+                label="Back" 
+              />
+            )}
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-slate-900 dark:text-white">
                 {getPageTitle()}

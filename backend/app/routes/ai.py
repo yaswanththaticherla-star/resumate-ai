@@ -8,30 +8,44 @@ from app.services.ai_service import (
     check_grammar as service_check_grammar,
     suggest_skills_for_role as service_suggest_skills_for_role,
     generate_linkedin_summary_content,
-    get_active_provider_name
+    get_active_provider_name,
+    handle_chat_request
 )
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 @router.get("/status")
 def get_ai_status():
+    has_groq = settings.has_groq
     has_gemini = settings.has_gemini
     has_openai = settings.has_openai
     provider = get_active_provider_name()
-    is_cloud = has_gemini or has_openai
+    is_cloud = has_groq or has_gemini or has_openai
 
-    if is_cloud:
-        msg = f"Connected to {provider}. Real generative AI responses enabled."
+    if has_groq and has_gemini:
+        msg = f"Primary provider Groq ({settings.GROQ_MODEL}) active with Google Gemini ({settings.GEMINI_MODEL}) fallback."
+    elif has_groq:
+        msg = f"Primary provider Groq ({settings.GROQ_MODEL}) active."
+    elif has_gemini:
+        msg = f"Fallback provider Google Gemini ({settings.GEMINI_MODEL}) active."
+    elif has_openai:
+        msg = "OpenAI provider active."
     else:
-        msg = "Local deterministic ATS heuristic engine active. To enable cloud generative AI, configure GEMINI_API_KEY in backend/.env."
+        msg = "Local deterministic ATS heuristic engine active. To enable cloud generative AI, configure GROQ_API_KEY in backend/.env."
 
     return {
         "status": "ready",
         "provider": provider,
+        "primary_provider": "Groq" if has_groq else None,
+        "fallback_provider": "Google Gemini" if has_gemini else None,
         "is_cloud_active": is_cloud,
-        "model": settings.GEMINI_MODEL if has_gemini else None,
+        "model": settings.GROQ_MODEL if has_groq else (settings.GEMINI_MODEL if has_gemini else None),
         "message": msg
     }
+
+@router.post("/chat", response_model=schemas.ChatResponse)
+def chat_with_ai(req: schemas.ChatRequest):
+    return handle_chat_request(req)
 
 @router.post("/improve-summary", response_model=schemas.AISuggestionOut)
 def improve_summary(req: schemas.ImproveSummaryRequest):
@@ -73,4 +87,3 @@ def generate_linkedin_summary(data: Dict[str, Any]):
         full_name=name,
         skills=skills_list
     )
-

@@ -70,8 +70,9 @@ def get_current_user(
     db: Session = Depends(get_db)
 ) -> models.User:
     """
-    Extract and validate JWT Bearer credentials.
-    Returns the authenticated user or raises HTTP 401 Unauthorized.
+    Validate the Bearer access token supplied in the Authorization header.
+    Returns the authenticated User model from the database.
+    Raises HTTP 401 Unauthorized if missing, malformed, invalid, or expired.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -79,8 +80,12 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     if not credentials or not credentials.credentials:
-        raise credentials_exception
-
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     token = credentials.credentials.strip()
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
@@ -92,6 +97,31 @@ def get_current_user(
         raise credentials_exception
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user is None:
-        raise credentials_exception
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
+
+def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db)
+) -> Optional[models.User]:
+    """
+    Attempt to resolve current user if bearer credentials are supplied.
+    Returns None if missing or invalid without raising 401.
+    """
+    if not credentials or not credentials.credentials:
+        return None
+    token = credentials.credentials.strip()
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id_str: Optional[str] = payload.get("sub")
+        if user_id_str:
+            return db.query(models.User).filter(models.User.id == int(user_id_str)).first()
+    except Exception:
+        return None
+    return None
+

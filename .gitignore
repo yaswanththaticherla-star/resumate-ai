@@ -32,6 +32,7 @@ yarn-error.log*
 *.db
 *.sqlite
 *.sqlite3
+*.bak
 resumate.db
 
 # IDE & OS files

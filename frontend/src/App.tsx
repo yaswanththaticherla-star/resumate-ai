@@ -1,10 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/useAuth';
 import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { MyResumesPage } from './pages/MyResumesPage';
 import { ResumeEditorPage } from './pages/ResumeEditorPage';
 import { ResumePreviewExportPage } from './pages/ResumePreviewExportPage';
 import { TemplateGalleryPage } from './pages/TemplateGalleryPage';
@@ -16,16 +14,21 @@ import { CareerToolsPage } from './pages/CareerToolsPage';
 import { PricingPage } from './pages/PricingPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { PublicResumePage } from './pages/PublicResumePage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { AppLayout } from './components/layout/AppLayout';
+import { useAuth } from './context/useAuth';
 
-// Protected Route wrapper
-const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-xs text-slate-400">
-        Authenticating session...
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Loading ResuMate AI...</p>
+        </div>
       </div>
     );
   }
@@ -34,20 +37,38 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 };
 
 export const App: React.FC = () => {
+  const { user, isLoading } = useAuth();
+
   return (
     <Routes>
-      {/* Public Pages */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {/* Root redirect */}
+      <Route
+        path="/"
+        element={
+          isLoading ? (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : user ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/share/:token" element={<PublicResumePage />} />
 
-      {/* Protected App Pages inside AppLayout */}
+      {/* Authentication Pages */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      {/* Protected Application Workspace inside AppLayout */}
       <Route
         element={
           <ProtectedRoute>
@@ -56,7 +77,7 @@ export const App: React.FC = () => {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/my-resumes" element={<DashboardPage />} />
+        <Route path="/my-resumes" element={<MyResumesPage />} />
         <Route path="/editor" element={<ResumeEditorPage />} />
         <Route path="/editor/:id" element={<ResumeEditorPage />} />
         <Route path="/preview" element={<ResumePreviewExportPage />} />
@@ -74,8 +95,8 @@ export const App: React.FC = () => {
         <Route path="/profile" element={<SettingsPage />} />
       </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch-all redirect to Dashboard (which redirects to /login if unauthenticated) */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };

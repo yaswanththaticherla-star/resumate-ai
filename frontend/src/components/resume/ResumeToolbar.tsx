@@ -13,6 +13,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { BackButton } from '../common/BackButton';
 
 interface ToolbarProps {
   resumeId: number;
@@ -83,6 +84,8 @@ export const ResumeToolbar: React.FC<ToolbarProps> = ({
     <div className="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 z-20">
       {/* Left controls: Template, Font, Color */}
       <div className="flex flex-wrap items-center gap-2">
+        <BackButton to="/my-resumes" label="My Resumes" />
+
         {/* Template Selector */}
         <div className="flex items-center gap-1.5">
           <LayoutTemplate className="w-4 h-4 text-slate-400 hidden sm:inline" />

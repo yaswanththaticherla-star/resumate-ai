@@ -7,10 +7,40 @@ import {
   JobApplication, 
   User, 
   TemplateInfo,
-  AISuggestion 
+  AISuggestion,
+  AuthResponse
 } from '../types';
 
 const API_BASE = '/api';
+const TOKEN_KEY = 'resumate_token';
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredToken(token: string | null) {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {}
+}
+
+function getAuthHeaders(): HeadersInit {
+  const token = getStoredToken();
+  if (token) {
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  }
+  return {};
+}
 
 export class ApiError extends Error {
   status: number;
@@ -24,16 +54,9 @@ export class ApiError extends Error {
   }
 }
 
-function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('resumate_token');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+const DEFAULT_HEADERS: HeadersInit = {
+  'Content-Type': 'application/json',
+};
 
 let backendReachable = true;
 
@@ -54,6 +77,7 @@ async function request<T>(
       ...options,
       signal: controller.signal,
       headers: {
+        ...DEFAULT_HEADERS,
         ...getAuthHeaders(),
         ...(options.headers || {}),
       },
@@ -64,6 +88,10 @@ async function request<T>(
     if (response.ok) {
       backendReachable = true;
       return await response.json();
+    }
+
+    if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/register') {
+      setStoredToken(null);
     }
 
     // Parse server error detail
@@ -87,45 +115,41 @@ async function request<T>(
       }
     } catch {}
 
-    // On 401 Unauthorized for protected endpoints, clear stale credentials and notify auth listener
-    if (response.status === 401 && endpoint !== '/auth/login') {
-      localStorage.removeItem('resumate_token');
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('resumate:auth-error'));
-      }
-    }
-
     throw new ApiError(response.status, errorMsg, detailData);
   } catch (err: any) {
     if (err instanceof ApiError) {
       throw err;
     }
     backendReachable = false;
+    if (err.name === 'AbortError') {
+      throw new Error('Connection timed out: The backend did not respond within 10 seconds. Please check if your FastAPI server is running.');
+    }
+    if (err.message === 'Failed to fetch' || err.message?.includes('NetworkError') || err.message?.includes('network')) {
+      throw new Error('Cannot connect to ResuMate AI backend (127.0.0.1:8000). Please ensure your FastAPI server is running.');
+    }
     throw new Error(err.message || 'Network error: Failed to connect to ResuMate AI backend server.');
   }
 }
 
 export const api = {
-  // Auth
+  // Authentication
   register: (data: { email: string; full_name: string; password: string }) =>
-    request<{ access_token: string; token_type: string; user: User }>(
-      '/auth/register',
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    ),
+    request<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   login: (data: { email: string; password: string }) =>
-    request<{ access_token: string; token_type: string; user: User }>(
-      '/auth/login',
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }
-    ),
+    request<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
+  // User Profile
   getMe: () =>
+    request<User>('/auth/me'),
+
+  getProfile: () =>
     request<User>('/auth/me'),
 
   updateProfile: (data: Partial<User>) =>
@@ -339,6 +363,15 @@ export const api = {
   generateLinkedInSummary: (data: { target_role: string; full_name: string; skills: string[] }) =>
     request<{ headline: string; about: string }>(
       '/ai/linkedin-summary',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
+
+  chatWithAI: (data: { message: string; history?: { role: string; content: string }[]; target_role?: string; resume_context?: string }) =>
+    request<{ response: string; provider: string; model: string; fallback_used: boolean }>(
+      '/ai/chat',
       {
         method: 'POST',
         body: JSON.stringify(data),

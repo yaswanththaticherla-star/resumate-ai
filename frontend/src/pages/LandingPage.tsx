@@ -25,11 +25,7 @@ export const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const handleCreateResumeCTA = () => {
-    if (user) {
-      navigate('/dashboard');
-    } else {
-      navigate('/register');
-    }
+    navigate('/dashboard');
   };
 
   const faqs = [
@@ -330,7 +326,7 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center gap-6">
             <Link to="/templates" className="hover:text-indigo-600">Templates</Link>
             <Link to="/pricing" className="hover:text-indigo-600">Pricing</Link>
-            <Link to="/login" className="hover:text-indigo-600">Sign In</Link>
+            <Link to="/dashboard" className="hover:text-indigo-600">Dashboard</Link>
           </div>
           <div>© {new Date().getFullYear()} ResuMate AI. All rights reserved.</div>
         </div>

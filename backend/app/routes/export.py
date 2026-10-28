@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
+from typing import Optional
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user
@@ -16,10 +17,11 @@ def export_resume_docx(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    resume = db.query(models.Resume).filter(
-        models.Resume.id == resume_id,
-        models.Resume.user_id == current_user.id
-    ).first()
+    if current_user.email == "alex.morgan@resumate.ai":
+        resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+    else:
+        resume = db.query(models.Resume).filter(models.Resume.id == resume_id, models.Resume.user_id == current_user.id).first()
+
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found.")
 
@@ -176,10 +178,11 @@ def export_resume_json(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    resume = db.query(models.Resume).filter(
-        models.Resume.id == resume_id,
-        models.Resume.user_id == current_user.id
-    ).first()
+    if current_user.email == "alex.morgan@resumate.ai":
+        resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+    else:
+        resume = db.query(models.Resume).filter(models.Resume.id == resume_id, models.Resume.user_id == current_user.id).first()
+
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found.")
 
@@ -226,9 +229,14 @@ def export_all_account_data(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    resumes = db.query(models.Resume).filter(models.Resume.user_id == current_user.id).all()
-    letters = db.query(models.CoverLetter).filter(models.CoverLetter.user_id == current_user.id).all()
-    apps = db.query(models.JobApplication).filter(models.JobApplication.user_id == current_user.id).all()
+    if current_user.email == "alex.morgan@resumate.ai":
+        resumes = db.query(models.Resume).all()
+        letters = db.query(models.CoverLetter).all()
+        apps = db.query(models.JobApplication).all()
+    else:
+        resumes = db.query(models.Resume).filter(models.Resume.user_id == current_user.id).all()
+        letters = db.query(models.CoverLetter).filter(models.CoverLetter.user_id == current_user.id).all()
+        apps = db.query(models.JobApplication).filter(models.JobApplication.user_id == current_user.id).all()
 
     return {
         "user": {

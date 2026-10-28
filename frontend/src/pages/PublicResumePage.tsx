@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { Resume } from '../types';
 import { ResumeTemplateRenderer } from '../components/resume/templates/ResumeTemplateRenderer';
+import { BackButton } from '../components/common/BackButton';
 import { Sparkles, Printer, Download, ArrowLeft } from 'lucide-react';
 
 export const PublicResumePage: React.FC = () => {
@@ -57,11 +58,14 @@ export const PublicResumePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col text-left">
       <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-600" />
-          <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-            ResuMate AI Shared View
-          </span>
+        <div className="flex items-center gap-3">
+          <BackButton to="/" label="Back to Home" />
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-indigo-600" />
+            <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+              ResuMate AI Shared View
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button

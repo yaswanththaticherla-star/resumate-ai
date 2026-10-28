@@ -9,6 +9,12 @@ export interface User {
   created_at: string;
 }
 
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
 export interface PersonalInfo {
   full_name: string;
   headline: string;

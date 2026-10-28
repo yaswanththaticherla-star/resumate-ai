@@ -261,8 +261,8 @@ class CoverLetterOut(BaseModel):
     recipient_name: Optional[str] = None
     recipient_title: Optional[str] = None
     job_description: Optional[str] = None
-    tone: str
-    length: str
+    tone: Optional[str] = "professional"
+    length: Optional[str] = "standard"
     content: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
@@ -334,4 +334,21 @@ class AISuggestionOut(BaseModel):
     improved: str
     explanation: str
     changes: List[str] = []
+
+# AI Chat Request/Response Schemas
+class ChatMessage(BaseModel):
+    role: str = "user"
+    content: str
+
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[ChatMessage]] = []
+    target_role: Optional[str] = None
+    resume_context: Optional[str] = None
+
+class ChatResponse(BaseModel):
+    response: str
+    provider: str
+    model: str
+    fallback_used: bool = False
 

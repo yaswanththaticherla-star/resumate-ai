@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { User } from '../types';
-import { api } from '../services/api';
+import { api, getStoredToken, setStoredToken } from '../services/api';
 
 export interface AuthContextType {
   user: User | null;
@@ -16,17 +16,14 @@ export interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('resumate_token'));
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Restore authenticated session once on initial application load
   useEffect(() => {
     let isMounted = true;
-
-    async function restoreSession() {
-      const storedToken = localStorage.getItem('resumate_token');
-      // If there is no token in storage, user is unauthenticated; never call /api/auth/me
+    async function initAuth() {
+      const storedToken = getStoredToken();
       if (!storedToken) {
         if (isMounted) {
           setUser(null);
@@ -38,15 +35,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const profile = await api.getMe();
-        if (isMounted) {
+        if (isMounted && profile) {
           setUser(profile);
           setToken(storedToken);
         }
-      } catch (err: any) {
-        // Token is invalid, expired (401), or user account no longer exists
-        console.warn('[ResuMate AI] Session restoration failed:', err?.message || err);
+      } catch {
+        // Token expired or invalid
         if (isMounted) {
-          localStorage.removeItem('resumate_token');
+          setStoredToken(null);
           setToken(null);
           setUser(null);
         }
@@ -57,52 +53,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    restoreSession();
-
-    // Listen for global unauthorized events dispatched by API client on 401s
-    const handleAuthError = () => {
-      if (isMounted) {
-        localStorage.removeItem('resumate_token');
-        setToken(null);
-        setUser(null);
-      }
-    };
-    window.addEventListener('resumate:auth-error', handleAuthError);
-
+    initAuth();
     return () => {
       isMounted = false;
-      window.removeEventListener('resumate:auth-error', handleAuthError);
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<User> => {
-    setIsLoading(true);
-    try {
-      const res = await api.login({ email, password });
-      localStorage.setItem('resumate_token', res.access_token);
-      setToken(res.access_token);
-      setUser(res.user);
-      return res.user;
-    } finally {
-      setIsLoading(false);
-    }
+    const res = await api.login({ email, password });
+    setStoredToken(res.access_token);
+    setToken(res.access_token);
+    setUser(res.user);
+    return res.user;
   }, []);
 
   const register = useCallback(async (email: string, fullName: string, password: string): Promise<User> => {
-    setIsLoading(true);
-    try {
-      const res = await api.register({ email, full_name: fullName, password });
-      localStorage.setItem('resumate_token', res.access_token);
-      setToken(res.access_token);
-      setUser(res.user);
-      return res.user;
-    } finally {
-      setIsLoading(false);
-    }
+    const res = await api.register({ email, full_name: fullName, password });
+    setStoredToken(res.access_token);
+    setToken(res.access_token);
+    setUser(res.user);
+    return res.user;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('resumate_token');
+    setStoredToken(null);
     setToken(null);
     setUser(null);
   }, []);
@@ -112,17 +86,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const storedToken = localStorage.getItem('resumate_token');
-    if (!storedToken) return;
     try {
       const u = await api.getMe();
-      setUser(u);
-    } catch (e: any) {
-      console.warn('[ResuMate AI] Refresh user failed:', e?.message || e);
-      localStorage.removeItem('resumate_token');
-      setToken(null);
-      setUser(null);
-    }
+      if (u) setUser(u);
+    } catch {}
   }, []);
 
   return (

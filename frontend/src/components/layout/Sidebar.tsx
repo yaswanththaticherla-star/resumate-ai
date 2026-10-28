@@ -10,12 +10,12 @@ import {
   Mail, 
   Briefcase, 
   Settings, 
-  LogOut, 
   Sparkles,
   ChevronRight,
   Home,
   Files,
-  KanbanSquare
+  KanbanSquare,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 
@@ -27,12 +27,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    onNavigate?.();
-    navigate('/');
-  };
 
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -143,11 +137,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate })
               </p>
             </div>
           </Link>
+          <Link
+            to="/settings"
+            onClick={onNavigate}
+            title="Workspace Settings"
+            className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-950/30 rounded-lg transition-colors flex-shrink-0 ml-1"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={logout}
             title="Sign Out"
-            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors flex-shrink-0 ml-1"
+            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors flex-shrink-0 ml-1 cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
           </button>

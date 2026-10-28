@@ -14,6 +14,7 @@ import { api } from '../services/api';
 import { TemplateInfo, Resume } from '../types';
 import { Modal } from '../components/common/Modal';
 import { ResumeTemplateRenderer } from '../components/resume/templates/ResumeTemplateRenderer';
+import { BackButton } from '../components/common/BackButton';
 
 export const TemplateGalleryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -147,9 +148,12 @@ export const TemplateGalleryPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold uppercase tracking-wider mb-2">
-            <LayoutTemplate className="w-3.5 h-3.5" />
-            <span>Recruiter-Approved Designs</span>
+          <div className="flex items-center gap-2 mb-2">
+            <BackButton to="/dashboard" label="Back to Dashboard" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold uppercase tracking-wider">
+              <LayoutTemplate className="w-3.5 h-3.5" />
+              <span>Recruiter-Approved Designs</span>
+            </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Resume Template Gallery

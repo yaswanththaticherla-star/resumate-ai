@@ -16,6 +16,7 @@ import {
 import { api } from '../services/api';
 import { Resume, JobMatchResult } from '../types';
 import { ScoreGauge } from '../components/common/ScoreGauge';
+import { BackButton } from '../components/common/BackButton';
 
 export const JobMatcherPage: React.FC = () => {
   const navigate = useNavigate();
@@ -118,9 +119,12 @@ export const JobMatcherPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-[11px] font-bold uppercase tracking-wider mb-2">
-            <Target className="w-3.5 h-3.5" />
-            <span>Keyword & Skill Resonance</span>
+          <div className="flex items-center gap-2 mb-2">
+            <BackButton to="/dashboard" label="Back to Dashboard" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-[11px] font-bold uppercase tracking-wider">
+              <Target className="w-3.5 h-3.5" />
+              <span>Keyword & Skill Resonance</span>
+            </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Job Description Matcher

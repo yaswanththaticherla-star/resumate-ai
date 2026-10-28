@@ -18,6 +18,7 @@ import {
 import { api } from '../services/api';
 import { Resume } from '../types';
 import { ResumeTemplateRenderer } from '../components/resume/templates/ResumeTemplateRenderer';
+import { BackButton } from '../components/common/BackButton';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -160,14 +161,9 @@ export const ResumePreviewExportPage: React.FC = () => {
     <div className="flex flex-col h-full bg-slate-100 dark:bg-slate-950 text-left">
       {/* Top Action Header */}
       <header className="h-16 flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between z-10 print:hidden gap-2">
-        <div className="flex items-center gap-3">
-          <Link
-            to={`/editor/${resume.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Editor</span>
-          </Link>
+        <div className="flex items-center gap-2">
+          <BackButton to={`/editor/${resume.id}`} label="Back to Editor" />
+          <BackButton to="/my-resumes" label="My Resumes" />
           <div className="hidden sm:flex items-center gap-2">
             <span className="font-bold text-sm text-slate-900 dark:text-white truncate max-w-[200px]">
               {resume.title}

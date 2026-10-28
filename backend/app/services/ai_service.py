@@ -1,10 +1,21 @@
 import os
 import re
 import json
+import time
 from typing import List, Dict, Any, Optional
 import requests
 from app.config import settings
+from app import schemas
 from app.schemas import AISuggestionOut
+
+try:
+    from groq import Groq
+    import groq
+    HAS_GROQ_LIB = True
+except ImportError:
+    Groq = None  # type: ignore
+    groq = None  # type: ignore
+    HAS_GROQ_LIB = False
 
 try:
     from google import genai
@@ -48,7 +59,26 @@ def extract_json_from_text(text: str) -> Any:
             pass
     return None
 
+# ----------------- CLIENT INITIALIZATION -----------------
+
+_groq_client: Optional[Any] = None
 _gemini_client: Optional[Any] = None
+
+def get_groq_client():
+    global _groq_client
+    if not settings.has_groq or not HAS_GROQ_LIB or Groq is None:
+        return None
+    if _groq_client is None:
+        try:
+            _groq_client = Groq(
+                api_key=settings.GROQ_API_KEY,
+                timeout=10.0,
+                max_retries=1
+            )
+        except Exception as e:
+            print(f"[ResuMate AI] Failed to initialize Groq Client: {type(e).__name__}")
+            return None
+    return _groq_client
 
 def get_gemini_client():
     global _gemini_client
@@ -65,8 +95,25 @@ def get_gemini_client():
             return None
     return _gemini_client
 
+# ----------------- ERROR CLASSIFICATION -----------------
+
+def classify_groq_error(e: Exception) -> str:
+    """Categorize Groq API errors into clear diagnostics."""
+    err_str = str(e).lower()
+    if "401" in err_str or "auth" in err_str or "unauthorized" in err_str:
+        return "Authentication / Invalid API Key"
+    elif "404" in err_str or "model_not_found" in err_str:
+        return "Model Not Found / Unavailable"
+    elif "429" in err_str or "rate_limit" in err_str or "quota" in err_str:
+        return "Rate Limit / Quota Exceeded"
+    elif "timeout" in err_str:
+        return "Timeout"
+    elif any(code in err_str for code in ["500", "502", "503", "504", "internal"]):
+        return "Server Error"
+    return f"Connection / Network Error ({type(e).__name__})"
+
 def classify_gemini_error(e: Exception) -> str:
-    """Categorize API errors into clear diagnostics."""
+    """Categorize Gemini API errors into clear diagnostics."""
     err_str = str(e).lower()
     if "401" in err_str or "403" in err_str or "permission" in err_str or "unauthenticated" in err_str:
         return "Authentication / Invalid API Key"
@@ -80,8 +127,263 @@ def classify_gemini_error(e: Exception) -> str:
         return "Upstream Server Timeout / Deadline Exceeded"
     return f"Network / Provider Error ({type(e).__name__})"
 
+# ----------------- PROVIDER CALLS -----------------
+
+def call_groq(prompt: str, system_message: str = "You are an expert career and resume assistant.") -> Optional[str]:
+    """Call Groq API as primary provider with bounded timeout."""
+    client = get_groq_client()
+    if not client:
+        return None
+
+    model_name = settings.GROQ_MODEL or "llama-3.3-70b-versatile"
+    models_to_try = [model_name]
+    for alt in ["llama-3.1-8b-instant", "qwen/qwen3.8-27b", "llama3-8b-8192"]:
+        if alt not in models_to_try:
+            models_to_try.append(alt)
+
+    for candidate_model in models_to_try:
+        try:
+            completion = client.chat.completions.create(
+                model=candidate_model,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+            )
+            if completion.choices and completion.choices[0].message and completion.choices[0].message.content:
+                return completion.choices[0].message.content.strip()
+        except Exception as e:
+            category = classify_groq_error(e)
+            err_msg = str(e)
+            if settings.GROQ_API_KEY and settings.GROQ_API_KEY in err_msg:
+                err_msg = err_msg.replace(settings.GROQ_API_KEY, "[REDACTED_API_KEY]")
+            print(f"[ResuMate AI] Groq API [{category}] on {candidate_model}: {err_msg[:120]}")
+            if category == "Authentication / Invalid API Key":
+                break
+
+    return None
+
+def call_gemini(prompt: str) -> Optional[str]:
+    """Call Google Gemini as automatic fallback provider."""
+    client = get_gemini_client()
+    if not client:
+        return None
+
+    model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
+    models_to_try = [model_name]
+    for alt in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+        if alt not in models_to_try:
+            models_to_try.append(alt)
+
+    for candidate_model in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=candidate_model,
+                contents=prompt,
+            )
+            if response and response.text:
+                return response.text.strip()
+        except Exception as e:
+            category = classify_gemini_error(e)
+            err_msg = str(e)
+            if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY in err_msg:
+                err_msg = err_msg.replace(settings.GEMINI_API_KEY, "[REDACTED_API_KEY]")
+            print(f"[ResuMate AI] Gemini API [{category}] on {candidate_model}: {err_msg[:120]}")
+            if category in ["Authentication / Invalid API Key", "Quota / Rate Limit Exceeded"]:
+                break
+
+    return None
+
+def call_cloud_ai_with_meta(prompt: str, system_message: Optional[str] = None) -> Dict[str, Any]:
+    """Attempt primary provider (Groq) first; automatically fallback to Gemini if Groq fails or is unconfigured."""
+    sys_msg = system_message or "You are an expert career strategist and ATS resume optimization AI."
+
+    # 1. Primary: Groq API
+    if settings.has_groq:
+        groq_resp = call_groq(prompt, system_message=sys_msg)
+        if groq_resp:
+            return {
+                "text": groq_resp,
+                "provider": "Groq",
+                "model": settings.GROQ_MODEL,
+                "fallback_used": False,
+                "error": None
+            }
+        print("[ResuMate AI] Groq primary provider failed or unavailable. Initiating fallback to Google Gemini...")
+
+    # 2. Fallback: Google Gemini API
+    if settings.has_gemini:
+        gemini_resp = call_gemini(prompt)
+        if gemini_resp:
+            return {
+                "text": gemini_resp,
+                "provider": "Google Gemini",
+                "model": settings.GEMINI_MODEL,
+                "fallback_used": bool(settings.has_groq),
+                "error": None
+            }
+        print("[ResuMate AI] Google Gemini fallback provider also failed.")
+
+    # 3. Tertiary fallback: OpenAI (if configured)
+    if settings.has_openai:
+        try:
+            url = "https://api.openai.com/v1/chat/completions"
+            resp = requests.post(
+                url,
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "system", "content": sys_msg},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7
+                },
+                headers={
+                    "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                timeout=10
+            )
+            if resp.ok:
+                data = resp.json()
+                choices = data.get("choices", [])
+                if choices:
+                    text = choices[0].get("message", {}).get("content", "")
+                    return {
+                        "text": text,
+                        "provider": "OpenAI",
+                        "model": "gpt-4o-mini",
+                        "fallback_used": True,
+                        "error": None
+                    }
+        except Exception as e:
+            print(f"[ResuMate AI] OpenAI tertiary call failed: {type(e).__name__}")
+
+    if not settings.has_groq and not settings.has_gemini and not settings.has_openai:
+        return {
+            "text": None,
+            "provider": "None",
+            "model": "None",
+            "fallback_used": False,
+            "error": "No AI provider configured"
+        }
+
+    return {
+        "text": None,
+        "provider": "None",
+        "model": "None",
+        "fallback_used": True,
+        "error": "All configured AI providers failed"
+    }
+
+def call_cloud_ai(prompt: str) -> Optional[str]:
+    """Unified entry point for AI text generation across the application with Groq-first, Gemini-fallback."""
+    res = call_cloud_ai_with_meta(prompt)
+    return res.get("text")
+
+def get_active_provider_name() -> str:
+    if settings.has_groq and settings.has_gemini:
+        return f"Groq ({settings.GROQ_MODEL}) with Gemini Fallback"
+    elif settings.has_groq:
+        return f"Groq ({settings.GROQ_MODEL})"
+    elif settings.has_gemini:
+        return f"Google Gemini ({settings.GEMINI_MODEL})"
+    elif settings.has_openai:
+        return "OpenAI GPT-4o-mini"
+    return "Local Heuristic NLP Engine"
+
+def handle_chat_request(req: schemas.ChatRequest) -> schemas.ChatResponse:
+    """Handle chat conversations with Groq-first and Gemini-fallback."""
+    if not settings.has_groq and not settings.has_gemini and not settings.has_openai:
+        return schemas.ChatResponse(
+            response="AI services are not configured. Please set GROQ_API_KEY or GEMINI_API_KEY in your environment.",
+            provider="None",
+            model="None",
+            fallback_used=False
+        )
+
+    system_prompt = (
+        "You are an elite career strategist and ATS resume optimization assistant for ResuMate AI. "
+        "Provide actionable, professional, and concise guidance."
+    )
+    if req.target_role:
+        system_prompt += f" The candidate is targeting the role: {req.target_role}."
+    if req.resume_context:
+        system_prompt += f" Context from candidate resume: {req.resume_context[:500]}."
+
+    prompt = req.message
+    if req.history:
+        hist_lines = []
+        for h in req.history[-4:]:
+            hist_lines.append(f"{h.role.capitalize()}: {h.content}")
+        prompt = f"Conversation History:\n" + "\n".join(hist_lines) + f"\n\nUser: {req.message}"
+
+    res = call_cloud_ai_with_meta(prompt, system_message=system_prompt)
+    if res.get("text"):
+        return schemas.ChatResponse(
+            response=res["text"],
+            provider=res["provider"],
+            model=res["model"],
+            fallback_used=res["fallback_used"]
+        )
+
+    return schemas.ChatResponse(
+        response="I apologize, but our AI service is temporarily unavailable due to upstream provider rate limits or downtime. Please try again shortly or use our built-in ATS resume tools.",
+        provider="None",
+        model="None",
+        fallback_used=True
+    )
+
+def test_groq_single_bounded_call(model_name: Optional[str] = None) -> Dict[str, Any]:
+    """Execute a single bounded test request to Groq."""
+    client = get_groq_client()
+    if not client:
+        return {
+            "status": "FAIL",
+            "model": model_name or settings.GROQ_MODEL,
+            "error_category": "Client Uninitialized (missing key or library)",
+            "error_message": "GROQ_API_KEY is not configured or groq is not installed.",
+            "latency_seconds": 0.0,
+            "response_preview": None
+        }
+
+    target_model = model_name or settings.GROQ_MODEL or "llama-3.3-70b-versatile"
+    start_t = time.time()
+    try:
+        completion = client.chat.completions.create(
+            model=target_model,
+            messages=[{"role": "user", "content": "Say 'ResuMate verification OK' in 4 words."}],
+            max_tokens=20,
+            temperature=0.7
+        )
+        duration = time.time() - start_t
+        text = completion.choices[0].message.content.strip() if completion.choices else ""
+        return {
+            "status": "PASS",
+            "model": target_model,
+            "error_category": None,
+            "error_message": None,
+            "latency_seconds": round(duration, 2),
+            "response_preview": text[:100]
+        }
+    except Exception as e:
+        duration = time.time() - start_t
+        category = classify_groq_error(e)
+        err_msg = str(e)
+        if settings.GROQ_API_KEY and settings.GROQ_API_KEY in err_msg:
+            err_msg = err_msg.replace(settings.GROQ_API_KEY, "[REDACTED_API_KEY]")
+        return {
+            "status": "FAIL",
+            "model": target_model,
+            "error_category": category,
+            "error_message": err_msg[:200],
+            "latency_seconds": round(duration, 2),
+            "response_preview": None
+        }
+
 def test_gemini_single_bounded_call(model_name: Optional[str] = None) -> Dict[str, Any]:
-    """Execute a single bounded test request to verify model availability without hanging."""
+    """Execute a single bounded test request to verify Gemini availability without hanging."""
     client = get_gemini_client()
     if not client:
         return {
@@ -93,8 +395,7 @@ def test_gemini_single_bounded_call(model_name: Optional[str] = None) -> Dict[st
             "response_preview": None
         }
 
-    target_model = model_name or settings.GEMINI_MODEL or "gemini-3.8-flash"
-    import time
+    target_model = model_name or settings.GEMINI_MODEL or "gemini-2.5-flash"
     start_t = time.time()
     try:
         response = client.models.generate_content(
@@ -125,69 +426,6 @@ def test_gemini_single_bounded_call(model_name: Optional[str] = None) -> Dict[st
             "latency_seconds": round(duration, 2),
             "response_preview": None
         }
-
-def call_gemini(prompt: str) -> Optional[str]:
-    """Call Google Gemini with bounded timeout and safe error handling without repeated retries."""
-    client = get_gemini_client()
-    if not client:
-        return None
-
-    model_name = settings.GEMINI_MODEL or "gemini-3.8-flash"
-    try:
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-        )
-        if response and response.text:
-            return response.text.strip()
-    except Exception as e:
-        category = classify_gemini_error(e)
-        err_msg = str(e)
-        if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY in err_msg:
-            err_msg = err_msg.replace(settings.GEMINI_API_KEY, "[REDACTED_API_KEY]")
-        print(f"[ResuMate AI] Gemini API [{category}] on {model_name}: {err_msg[:120]}")
-
-    return None
-
-def call_cloud_ai(prompt: str) -> Optional[str]:
-    """Call Google Gemini (via official SDK) or fallback to OpenAI if configured."""
-    if settings.has_gemini:
-        res = call_gemini(prompt)
-        if res:
-            return res
-
-    if settings.has_openai:
-        try:
-            url = "https://api.openai.com/v1/chat/completions"
-            resp = requests.post(
-                url,
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.7
-                },
-                headers={
-                    "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                timeout=12
-            )
-            if resp.ok:
-                data = resp.json()
-                choices = data.get("choices", [])
-                if choices:
-                    return choices[0].get("message", {}).get("content", "")
-        except Exception as e:
-            print(f"[ResuMate AI] OpenAI API call failed: {type(e).__name__}")
-
-    return None
-
-def get_active_provider_name() -> str:
-    if settings.has_gemini:
-        return f"Google Gemini ({settings.GEMINI_MODEL})"
-    if settings.has_openai:
-        return "OpenAI GPT-4o-mini"
-    return "Local Heuristic NLP Engine"
 
 
 # ----------------- SUMMARY -----------------
@@ -233,7 +471,7 @@ def enhance_summary_deterministic(current_summary: str, target_role: str = "", e
     )
 
 def enhance_summary(current_summary: str, target_role: str = "", experience_level: str = "Mid-level", tone: str = "Impactful") -> AISuggestionOut:
-    if settings.GEMINI_API_KEY or settings.OPENAI_API_KEY:
+    if settings.has_groq or settings.has_gemini or settings.has_openai:
         prompt = (
             f"You are an executive resume strategist and ATS optimization expert. Improve the following resume professional summary.\n"
             f"Target Role: {target_role or 'Professional'}\n"
@@ -298,7 +536,7 @@ def enhance_bullets_deterministic(bullets: List[str], job_role: str = "", compan
     return results
 
 def enhance_bullets(bullets: List[str], job_role: str = "", company: str = "") -> List[AISuggestionOut]:
-    if (settings.GEMINI_API_KEY or settings.OPENAI_API_KEY) and bullets:
+    if (settings.has_groq or settings.has_gemini or settings.has_openai) and bullets:
         prompt = (
             f"You are a tech recruiter and resume editor. Enhance the following resume bullet points using the Google XYZ formula ('Accomplished [X] as measured by [Y] by doing [Z]').\n"
             f"Target Role: {job_role or 'Software Engineer'}\n"
@@ -367,7 +605,7 @@ def check_grammar_deterministic(text: str) -> AISuggestionOut:
     )
 
 def check_grammar(text: str) -> AISuggestionOut:
-    if settings.GEMINI_API_KEY or settings.OPENAI_API_KEY:
+    if settings.has_groq or settings.has_gemini or settings.has_openai:
         prompt = (
             f"You are an expert copyeditor. Fix all grammar, spelling, punctuation, and awkward phrasing in the following text.\n"
             f"Text: {text}\n\n"
@@ -394,7 +632,7 @@ def suggest_skills_for_role(target_role: str, current_skills: List[str]) -> List
     role_lower = target_role.lower()
     current_lower = {s.lower() for s in current_skills}
 
-    if settings.GEMINI_API_KEY or settings.OPENAI_API_KEY:
+    if settings.has_groq or settings.has_gemini or settings.has_openai:
         prompt = (
             f"List 10 in-demand technical and domain skills for the role '{target_role}'.\n"
             f"Do not include any of these existing skills: {', '.join(current_skills)}\n"
@@ -444,7 +682,7 @@ def generate_cover_letter_content(
     tone: str = "professional",
     length: str = "standard"
 ) -> str:
-    if settings.GEMINI_API_KEY or settings.OPENAI_API_KEY:
+    if settings.has_groq or settings.has_gemini or settings.has_openai:
         prompt = (
             f"You are an expert career counselor. Write a compelling, tailored cover letter.\n"
             f"Candidate Name: {user_name}\n"

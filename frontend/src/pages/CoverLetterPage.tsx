@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CoverLetter, Resume } from '../types';
+import { BackButton } from '../components/common/BackButton';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -203,9 +204,12 @@ export const CoverLetterPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-[11px] font-bold uppercase tracking-wider mb-2">
-            <Mail className="w-3.5 h-3.5" />
-            <span>Targeted Outreach</span>
+          <div className="flex items-center gap-2 mb-2">
+            <BackButton to="/dashboard" label="Back to Dashboard" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-[11px] font-bold uppercase tracking-wider">
+              <Mail className="w-3.5 h-3.5" />
+              <span>Targeted Outreach</span>
+            </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Cover Letter Studio
