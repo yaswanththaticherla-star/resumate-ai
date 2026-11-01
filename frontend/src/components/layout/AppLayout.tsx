@@ -16,7 +16,7 @@ export const AppLayout: React.FC = () => {
   const [isCreatingResume, setIsCreatingResume] = useState(false);
 
   // Extract active resume ID from URL if on editor/preview route
-  const matchEditor = location.pathname.match(/\/(editor|preview|export)\/(\d+)/);
+  const matchEditor = location.pathname.match(/\/(editor|builder|resume-builder|preview|export)\/(\d+)/);
   const activeResumeId = matchEditor ? parseInt(matchEditor[2], 10) : undefined;
 
   const handleCreateNewResume = async () => {
@@ -39,17 +39,18 @@ export const AppLayout: React.FC = () => {
   // Human friendly page title
   const getPageTitle = () => {
     const p = location.pathname;
-    if (p.startsWith('/dashboard')) return 'Dashboard Overview';
-    if (p.startsWith('/my-resumes')) return 'My Resumes';
-    if (p.startsWith('/editor')) return 'Resume Builder & Editor';
+    if (p === '/' || p.startsWith('/dashboard')) return 'Dashboard Overview';
+    if (p.startsWith('/resumes') || p.startsWith('/my-resumes')) return 'My Resumes';
+    if (p.startsWith('/editor') || p.startsWith('/builder') || p.startsWith('/resume-builder')) return 'Resume Builder & Editor';
     if (p.startsWith('/preview') || p.startsWith('/export')) return 'Resume Preview & Export';
-    if (p.startsWith('/templates')) return 'Template Gallery';
+    if (p.startsWith('/templates') || p.startsWith('/my-templates')) return 'Template Gallery';
     if (p.startsWith('/ai-assistant')) return 'AI Assistant & Copilot';
     if (p.startsWith('/ats-checker')) return 'ATS Readiness Scanner';
     if (p.startsWith('/job-matcher')) return 'Job Description Matcher';
     if (p.startsWith('/cover-letters')) return 'Cover Letter Studio';
+    if (p.startsWith('/job-tracker')) return 'Job Application Tracker';
     if (p.startsWith('/career-tools')) return 'Career Tracker & Toolkit';
-    if (p.startsWith('/settings')) return 'Preferences & Account';
+    if (p.startsWith('/settings') || p.startsWith('/profile')) return 'Workspace Settings';
     return 'ResuMate AI';
   };
 
@@ -97,9 +98,9 @@ export const AppLayout: React.FC = () => {
             >
               <Menu className="h-5 w-5" />
             </button>
-            {location.pathname !== '/dashboard' && (
+            {location.pathname !== '/dashboard' && location.pathname !== '/' && (
               <BackButton 
-                to={location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview') || location.pathname.startsWith('/export') ? '/my-resumes' : '/dashboard'} 
+                to={location.pathname.startsWith('/editor') || location.pathname.startsWith('/builder') || location.pathname.startsWith('/resume-builder') || location.pathname.startsWith('/preview') || location.pathname.startsWith('/export') ? '/my-resumes' : '/dashboard'} 
                 label="Back" 
               />
             )}

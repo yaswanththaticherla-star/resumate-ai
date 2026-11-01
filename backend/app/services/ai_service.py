@@ -745,7 +745,7 @@ def generate_cover_letter_content(
 # ----------------- LINKEDIN & INTERVIEW -----------------
 
 def generate_linkedin_summary_content(target_role: str, full_name: str, skills: List[str]) -> Dict[str, str]:
-    if settings.has_gemini or settings.has_openai:
+    if settings.has_groq or settings.has_gemini or settings.has_openai:
         skills_str = ", ".join(skills[:6]) if skills else "Software Engineering"
         prompt = (
             f"You are a professional personal branding coach. Generate a high-converting LinkedIn Headline and About section for:\n"
@@ -784,7 +784,7 @@ def generate_interview_questions_content(
     skills: List[str],
     projects: List[str]
 ) -> List[Dict[str, str]]:
-    if settings.has_gemini or settings.has_openai:
+    if settings.has_groq or settings.has_gemini or settings.has_openai:
         prompt = (
             f"Generate 5 realistic, high-impact job interview questions for the role of '{target_role}' at '{company_name}'.\n"
             f"Candidate Skills: {', '.join(skills[:5]) if skills else 'Software Engineering'}\n"

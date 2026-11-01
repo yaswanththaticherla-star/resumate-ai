@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { 
   Resume, 
   ResumeContent, 
@@ -10,21 +12,27 @@ import {
   AISuggestion
 } from '../types';
 
-const API_BASE = '/api';
+// Resolve backend API base URL with environment variable support
+// In development: defaults to '/api' (proxied by Vite to http://127.0.0.1:8000)
+// In production: uses import.meta.env.VITE_API_URL or defaults to deployed backend
+const defaultProdApiUrl = 'https://resumate-ai-0tnq.onrender.com';
+const rawApiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? defaultProdApiUrl : '/api');
 
-export function getStoredToken(): string | null {
-  return null;
+function normalizeApiBase(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === '/api') {
+    return '/api';
+  }
+  const clean = trimmed.replace(/\/+$/, '');
+  if (clean === '/api') {
+    return '/api';
+  }
+  // Ensure the base ends with /api without creating duplicate /api segments
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
 }
 
-export function setStoredToken(_token: string | null) {
-  try {
-    localStorage.removeItem('resumate_token');
-  } catch {}
-}
-
-function getAuthHeaders(): HeadersInit {
-  return {};
-}
+const API_BASE = normalizeApiBase(rawApiUrl);
+const IS_LOCAL_DEV = Boolean(import.meta.env.DEV && API_BASE === '/api');
 
 export class ApiError extends Error {
   status: number;
@@ -50,9 +58,14 @@ export function isBackendOnline(): boolean {
 
 async function request<T>(
   endpoint: string, 
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isFallback: boolean = false
 ): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = (isFallback && IS_LOCAL_DEV)
+    ? `http://127.0.0.1:8000/api${normalizedEndpoint}`
+    : `${API_BASE}${normalizedEndpoint}`;
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -71,6 +84,12 @@ async function request<T>(
     if (response.ok) {
       backendReachable = true;
       return await response.json();
+    }
+
+    // In local dev only: if Vite proxy returns 503 (backend initializing), retry via direct port 8000
+    if (IS_LOCAL_DEV && response.status === 503 && !isFallback) {
+      console.warn('[ResuMate AI] Vite proxy returned 503; falling back to direct connection at http://127.0.0.1:8000...');
+      return await request<T>(endpoint, options, true);
     }
 
     // Parse server error detail
@@ -99,12 +118,28 @@ async function request<T>(
     if (err instanceof ApiError) {
       throw err;
     }
+    // In local dev only: if relative fetch failed with network error, attempt direct connection before failing
+    if (IS_LOCAL_DEV && !isFallback && (err.message === 'Failed to fetch' || err.message?.includes('network') || err.message?.includes('NetworkError'))) {
+      try {
+        console.warn('[ResuMate AI] Relative fetch network issue; falling back to direct connection at http://127.0.0.1:8000...');
+        return await request<T>(endpoint, options, true);
+      } catch (fallbackErr: any) {
+        if (fallbackErr instanceof ApiError) throw fallbackErr;
+      }
+    }
+
     backendReachable = false;
     if (err.name === 'AbortError') {
-      throw new Error('Connection timed out: The backend did not respond within 10 seconds. Please check if your FastAPI server is running.');
+      const msg = IS_LOCAL_DEV
+        ? 'Connection timed out: The backend did not respond within 10 seconds. Please check if your FastAPI server is running on port 8000.'
+        : 'Connection timed out: The backend did not respond within 10 seconds. Please check backend server status.';
+      throw new Error(msg);
     }
     if (err.message === 'Failed to fetch' || err.message?.includes('NetworkError') || err.message?.includes('network')) {
-      throw new Error('Cannot connect to ResuMate AI backend (127.0.0.1:8000). Please ensure your FastAPI server is running.');
+      const msg = IS_LOCAL_DEV
+        ? 'Cannot connect to ResuMate AI backend (127.0.0.1:8000). Please start the backend server using: npm run backend'
+        : 'Cannot connect to ResuMate AI backend. Please verify your internet connection or check backend server status.';
+      throw new Error(msg);
     }
     throw new Error(err.message || 'Network error: Failed to connect to ResuMate AI backend server.');
   }
@@ -126,10 +161,6 @@ export const api = {
         body: JSON.stringify(data),
       }
     ),
-
-  // Backwards compatibility stubs
-  register: async (_data: any) => ({ access_token: '', token_type: 'bearer', user: {} as User }),
-  login: async (_data: any) => ({ access_token: '', token_type: 'bearer', user: {} as User }),
 
   // Resumes
   listResumes: () =>

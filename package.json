@@ -4,11 +4,13 @@
   "private": true,
   "description": "ResuMate AI - AI-Powered Resume Builder & Career Acceleration Suite",
   "scripts": {
-    "dev": "npm run dev --prefix frontend",
+    "dev": "node scripts/dev.js",
+    "start": "node scripts/dev.js",
     "frontend": "npm run dev --prefix frontend",
+    "postinstall": "npm install --prefix frontend",
     "build": "npm run build --prefix frontend",
     "preview": "npm run preview --prefix frontend",
-    "server": "backend\\venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload",
-    "backend": "backend\\venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload"
+    "server": "\"backend\\venv\\Scripts\\python.exe\" -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload",
+    "backend": "\"backend\\venv\\Scripts\\python.exe\" -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload"
   }
 }

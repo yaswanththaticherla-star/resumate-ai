@@ -7,23 +7,12 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str
 
-class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     headline: Optional[str] = None
     avatar_url: Optional[str] = None
     theme_preference: Optional[str] = None
     default_template: Optional[str] = None
-
-class PasswordChange(BaseModel):
-    old_password: str
-    new_password: str = Field(..., min_length=6)
 
 class UserOut(UserBase):
     id: int
@@ -34,11 +23,6 @@ class UserOut(UserBase):
     created_at: datetime.datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    user: UserOut
 
 # Resume Content Schemas
 class PersonalInfo(BaseModel):

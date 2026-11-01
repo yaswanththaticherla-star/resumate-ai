@@ -28,7 +28,7 @@ def test_unauthenticated_workspace_profile():
     assert resp.status_code == 200
     data = resp.json()
     assert data["email"] == "alex.morgan@resumate.ai"
-    assert data["full_name"] == "Alex Morgan"
+    assert data["full_name"] == "yaswanth"
 
 def test_unauthenticated_endpoints_no_headers():
     # Application endpoints do not require Authorization headers and return 200
@@ -477,5 +477,131 @@ def test_chat_endpoint_via_client(monkeypatch):
         assert data["provider"] == "Groq"
         assert data["fallback_used"] is False
 
+def test_raw_ats_scoring():
+    raw_payload = {
+        "content": {
+            "personal_info": {
+                "full_name": "Test Engineer",
+                "email": "test.eng@example.com",
+                "phone": "+1 555 123 4567",
+                "location": "Austin, TX"
+            },
+            "summary": "Experienced engineer with a focus on scalable systems.",
+            "experience": [
+                {
+                    "id": "e1",
+                    "company": "Tech Corp",
+                    "role": "Software Engineer",
+                    "start_date": "2020",
+                    "end_date": "2023",
+                    "bullets": ["Architected scalable web apps"]
+                }
+            ],
+            "skills": [
+                {"id": "s1", "name": "Technical", "skills": ["Python", "FastAPI"]}
+            ]
+        },
+        "target_role": "Backend Developer"
+    }
+    resp = client.post("/api/ats/analyze-raw", json=raw_payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "score" in data
+    assert data["score"] > 0
+    assert len(data["issues"]) > 0
 
+def test_resume_versioning_and_restore():
+    # Create resume
+    r = client.post("/api/resumes", json={"title": "Versioning Test"})
+    assert r.status_code == 200
+    res_id = r.json()["id"]
 
+    # Initial version exists
+    versions_resp = client.get(f"/api/resumes/{res_id}/versions")
+    assert versions_resp.status_code == 200
+    versions = versions_resp.json()
+    assert len(versions) >= 1
+    initial_ver_id = versions[0]["id"]
+
+    # Update resume content
+    new_content = dict(r.json()["content"])
+    new_content["summary"] = "Updated version summary for snapshot testing."
+    up_resp = client.put(f"/api/resumes/{res_id}", json={"content": new_content})
+    assert up_resp.status_code == 200
+
+    # Restore initial version using /restore/ route
+    restore_resp = client.post(f"/api/resumes/{res_id}/restore/{initial_ver_id}")
+    assert restore_resp.status_code == 200
+    restored = restore_resp.json()
+    assert restored["content"]["summary"] != "Updated version summary for snapshot testing."
+
+    # Cleanup
+    client.delete(f"/api/resumes/{res_id}")
+
+def test_resume_sharing_endpoint():
+    r = client.post("/api/resumes", json={"title": "Sharing Test"})
+    assert r.status_code == 200
+    res_id = r.json()["id"]
+
+    # Toggle share
+    share_resp = client.post(f"/api/resumes/{res_id}/share")
+    assert share_resp.status_code == 200
+    share_token = share_resp.json()["share_token"]
+    assert share_token is not None
+
+    # Retrieve shared resume via /shared/{token} and /share/{token}
+    pub_resp = client.get(f"/api/resumes/shared/{share_token}")
+    assert pub_resp.status_code == 200
+    assert pub_resp.json()["id"] == res_id
+
+    pub_resp2 = client.get(f"/api/resumes/share/{share_token}")
+    assert pub_resp2.status_code == 200
+    assert pub_resp2.json()["id"] == res_id
+
+    # Cleanup
+    client.delete(f"/api/resumes/{res_id}")
+
+def test_interview_questions_and_linkedin_summary():
+    iq_resp = client.post("/api/career/interview-questions", json={
+        "target_role": "Site Reliability Engineer",
+        "company_name": "CloudTech"
+    })
+    assert iq_resp.status_code == 200
+    iq_data = iq_resp.json()
+    assert iq_data["role"] == "Site Reliability Engineer"
+    assert len(iq_data["questions"]) >= 3
+
+    li_resp = client.post("/api/ai/linkedin-summary", json={
+        "target_role": "Full Stack Engineer",
+        "full_name": "Alex Morgan",
+        "skills": ["React", "Python"]
+    })
+    assert li_resp.status_code == 200
+    li_data = li_resp.json()
+    assert "headline" in li_data
+    assert "about" in li_data
+
+def test_internship_checklist_and_json_import_export():
+    chk_resp = client.get("/api/career/internship-checklist")
+    assert chk_resp.status_code == 200
+    assert len(chk_resp.json()) >= 3
+
+    # Create resume for export
+    r = client.post("/api/resumes", json={"title": "JSON Export Test"})
+    assert r.status_code == 200
+    res_id = r.json()["id"]
+
+    # Export JSON
+    exp_resp = client.get(f"/api/export/json/{res_id}")
+    assert exp_resp.status_code == 200
+    exp_data = exp_resp.json()
+    assert exp_data["title"] == "JSON Export Test"
+
+    # Import JSON
+    imp_resp = client.post("/api/export/import-json", json=exp_data)
+    assert imp_resp.status_code == 200
+    assert "Imported" in imp_resp.json()["title"]
+
+    # Cleanup
+    client.delete(f"/api/resumes/{res_id}")
+    client.delete(f"/api/resumes/{imp_resp.json()['id']}")

@@ -68,17 +68,17 @@ export const Navbar: React.FC = () => {
               className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
-                {user?.full_name ? user.full_name[0].toUpperCase() : 'A'}
+                {user?.full_name ? user.full_name[0].toUpperCase() : 'Y'}
               </div>
-              <span className="hidden sm:inline max-w-[120px] truncate">{user?.full_name ? user.full_name.split(' ')[0] : 'Alex'}</span>
+              <span className="hidden sm:inline max-w-[120px] truncate">{user?.full_name ? user.full_name.split(' ')[0] : 'yaswanth'}</span>
             </button>
 
             {userDropdownOpen && (
               <div className="absolute right-0 mt-2 w-52 origin-top-right rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50">
                 <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
                   <p className="text-xs text-slate-500 dark:text-slate-400">Workspace User</p>
-                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{user?.full_name || 'Alex Morgan'}</p>
-                  <p className="truncate text-[11px] text-slate-400">{user?.email || 'alex.morgan@example.com'}</p>
+                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{user?.full_name || 'yaswanth'}</p>
+                  <p className="truncate text-[11px] text-slate-400">{user?.email || 'alex.morgan@resumate.ai'}</p>
                 </div>
                 <Link
                   to="/dashboard"

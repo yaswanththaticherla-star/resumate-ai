@@ -23,6 +23,14 @@ export const SettingsPage: React.FC = () => {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (user) {
+      if (user.full_name) setFullName(user.full_name);
+      if (user.headline) setHeadline(user.headline);
+      if (user.default_template) setDefaultTemplate(user.default_template);
+    }
+  }, [user]);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSaving(true);
@@ -97,7 +105,7 @@ export const SettingsPage: React.FC = () => {
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Alex Morgan"
+                placeholder="e.g. yaswanth"
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>

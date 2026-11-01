@@ -47,7 +47,7 @@ export const LandingPage: React.FC = () => {
     },
     {
       q: 'Is my personal career data private and secure?',
-      a: 'Yes. Your resumes and documents are strictly scoped to your private user account with bcrypt password hashing and tokenized authorization. We never share or sell your career data.'
+      a: 'Yes. Your resumes and documents are strictly stored in your private workspace database. We never share or sell your career data.'
     }
   ];
 

@@ -205,6 +205,7 @@ def toggle_share(
     return {"is_public": resume.is_public, "share_token": resume.share_token}
 
 @router.get("/share/{share_token}", response_model=schemas.ResumeOut)
+@router.get("/shared/{share_token}", response_model=schemas.ResumeOut)
 def get_public_resume(
     share_token: str,
     db: Session = Depends(get_db)
@@ -228,6 +229,7 @@ def get_versions(
     return db.query(models.ResumeVersion).filter(models.ResumeVersion.resume_id == resume_id).order_by(models.ResumeVersion.created_at.desc()).all()
 
 @router.post("/{resume_id}/rollback/{version_id}", response_model=schemas.ResumeOut)
+@router.post("/{resume_id}/restore/{version_id}", response_model=schemas.ResumeOut)
 def rollback_version(
     resume_id: int,
     version_id: int,

@@ -212,7 +212,7 @@ export const MyResumesPage: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {searchQuery || templateFilter !== 'all'
                   ? 'Try clearing your search query or selecting a different template filter.'
-                  : 'Get started by creating your first resume or exploring our ATS-ready professional templates.'}
+                  : 'Create your first resume or explore our ATS-ready professional templates.'}
               </p>
             </div>
             <div className="flex justify-center gap-3 pt-2">

@@ -27,7 +27,7 @@ def seed_demo_user():
         if not existing:
             demo_user = models.User(
                 email=demo_email,
-                full_name="Alex Morgan",
+                full_name="yaswanth",
                 hashed_password="workspace_unauthenticated",
                 headline="Senior Full-Stack Software Engineer"
             )
@@ -164,7 +164,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

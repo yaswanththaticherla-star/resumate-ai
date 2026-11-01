@@ -4,22 +4,18 @@ import { api } from '../services/api';
 
 export interface AuthContextType {
   user: User;
-  token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<User>;
-  register: (email: string, fullName: string, password: string) => Promise<User>;
-  logout: () => void;
   updateUser: (updated: User) => void;
   refreshUser: () => Promise<void>;
 }
 
 const DEFAULT_WORKSPACE_USER: User = {
   id: 2,
-  email: 'alex.morgan@example.com',
-  full_name: 'Alex Morgan',
+  email: 'alex.morgan@resumate.ai',
+  full_name: 'yaswanth',
   headline: 'Senior Full Stack Engineer & Cloud Architect',
   theme_preference: 'dark',
-  default_template: 'modern',
+  default_template: 'ats_classic',
   created_at: new Date().toISOString(),
 };
 
@@ -47,18 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = useCallback(async (_email: string, _password: string): Promise<User> => {
-    return user;
-  }, [user]);
-
-  const register = useCallback(async (_email: string, _fullName: string, _password: string): Promise<User> => {
-    return user;
-  }, [user]);
-
-  const logout = useCallback(() => {
-    // No-op in unauthenticated workspace mode
-  }, []);
-
   const updateUser = useCallback((updated: User) => {
     setUser(updated);
   }, []);
@@ -74,11 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
-        token: null,
         isLoading,
-        login,
-        register,
-        logout,
         updateUser,
         refreshUser,
       }}

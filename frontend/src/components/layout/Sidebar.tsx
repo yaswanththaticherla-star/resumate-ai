@@ -49,10 +49,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate })
       {/* Brand Header */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800/80">
         <Link 
-          to="/" 
+          to="/dashboard" 
           onClick={onNavigate}
           className="flex items-center gap-2.5 group"
-          title="Go to Landing Page"
+          title="Go to Dashboard"
         >
           <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
             <Sparkles className="h-5 w-5" />
@@ -67,14 +67,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate })
           </div>
         </Link>
 
-        {/* Quick Link to Landing Page */}
+        {/* Quick Link to Dashboard Overview */}
         <Link
-          to="/"
+          to="/dashboard"
           onClick={onNavigate}
-          title="Return to Public Home"
+          title="Dashboard Overview"
           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
         >
-          <Home className="h-4 w-4" />
+          <LayoutDashboard className="h-4 w-4" />
         </Link>
       </div>
 
@@ -124,14 +124,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentResumeId, onNavigate })
             className="flex items-center gap-2.5 min-w-0 flex-1"
           >
             <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-              {user?.full_name ? user.full_name[0].toUpperCase() : 'U'}
+              {user?.full_name ? user.full_name[0].toUpperCase() : 'Y'}
             </div>
             <div className="min-w-0 text-left">
               <p className="text-xs font-semibold text-white truncate">
-                {user?.full_name || 'My Account'}
+                {user?.full_name || 'yaswanth'}
               </p>
               <p className="text-[10px] text-slate-400 truncate">
-                {user?.email || 'Manage profile'}
+                {user?.email || 'alex.morgan@resumate.ai'}
               </p>
             </div>
           </Link>

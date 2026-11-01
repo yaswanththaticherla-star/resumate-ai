@@ -19,27 +19,30 @@ import { AppLayout } from './components/layout/AppLayout';
 export const App: React.FC = () => {
   return (
     <Routes>
-      {/* Root immediately navigates to Dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Standalone Marketing & Public Share routes */}
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/share/:token" element={<PublicResumePage />} />
 
-      {/* Obsolete auth routes redirect immediately to Dashboard */}
-      <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/register" element={<Navigate to="/dashboard" replace />} />
-
-      {/* Main Workspace Application inside AppLayout (no authentication guards) */}
+      {/* Main Workspace Application inside AppLayout (Direct access, zero-auth) */}
       <Route element={<AppLayout />}>
+        {/* Root URL / directly opens Dashboard */}
+        <Route path="/" element={<DashboardPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/resumes" element={<MyResumesPage />} />
         <Route path="/my-resumes" element={<MyResumesPage />} />
         <Route path="/editor" element={<ResumeEditorPage />} />
         <Route path="/editor/:id" element={<ResumeEditorPage />} />
+        <Route path="/builder" element={<ResumeEditorPage />} />
+        <Route path="/builder/:id" element={<ResumeEditorPage />} />
+        <Route path="/resume-builder" element={<ResumeEditorPage />} />
+        <Route path="/resume-builder/:id" element={<ResumeEditorPage />} />
         <Route path="/preview" element={<ResumePreviewExportPage />} />
         <Route path="/preview/:id" element={<ResumePreviewExportPage />} />
         <Route path="/export" element={<ResumePreviewExportPage />} />
         <Route path="/export/:id" element={<ResumePreviewExportPage />} />
         <Route path="/templates" element={<TemplateGalleryPage />} />
+        <Route path="/my-templates" element={<TemplateGalleryPage />} />
         <Route path="/ai-assistant" element={<AIAssistantPage />} />
         <Route path="/ats-checker" element={<ATSCheckerPage />} />
         <Route path="/job-matcher" element={<JobMatcherPage />} />

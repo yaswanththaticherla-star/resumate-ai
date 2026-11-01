@@ -15,7 +15,7 @@ def get_workspace_user(db: Session) -> models.User:
     if not user:
         user = models.User(
             email="alex.morgan@resumate.ai",
-            full_name="Alex Morgan",
+            full_name="yaswanth",
             headline="Senior Full-Stack Software Engineer",
             hashed_password="local_workspace_user",
             theme_preference="system",

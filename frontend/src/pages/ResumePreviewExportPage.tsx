@@ -24,11 +24,11 @@ import jsPDF from 'jspdf';
 
 const TEMPLATES = [
   { id: 'ats_classic', label: 'ATS Classic' },
-  { id: 'modern_minimal', label: 'Modern Minimal' },
+  { id: 'modern_pro', label: 'Modern Professional' },
+  { id: 'software_dev', label: 'Software Developer' },
+  { id: 'student_fresher', label: 'Student / Fresher' },
+  { id: 'minimalist', label: 'Minimalist' },
   { id: 'executive', label: 'Executive' },
-  { id: 'creative_sidebar', label: 'Creative Sidebar' },
-  { id: 'tech_stack', label: 'Tech Stack' },
-  { id: 'corporate', label: 'Corporate' },
 ];
 
 export const ResumePreviewExportPage: React.FC = () => {
